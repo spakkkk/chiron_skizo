@@ -2409,7 +2409,8 @@ static int wp_page_copy(struct fault_env *fe, pte_t orig_pte,
 		 */
 		if (page_copied && (fe->vma_flags & VM_LOCKED)) {
 			lock_page(old_page);	/* LRU manipulation */
-			munlock_vma_page(old_page);
+			if (PageMlocked(old_page))
+				munlock_vma_page(old_page);
 			unlock_page(old_page);
 		}
 		page_cache_release(old_page);
