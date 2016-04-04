@@ -118,7 +118,7 @@ void __init call_function_init(void)
  */
 static void csd_lock_wait(call_single_data_t *csd)
 {
-	while (smp_load_acquire(&csd->flags) & CSD_FLAG_LOCK)
+	while (smp_cond_load_acquire(&csd->flags, !(VAL & CSD_FLAG_LOCK)))
 		cpu_relax();
 }
 
