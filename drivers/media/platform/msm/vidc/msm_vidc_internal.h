@@ -24,6 +24,7 @@
 #include <linux/msm-bus.h>
 #include <linux/msm-bus-board.h>
 #include <linux/kref.h>
+#include <linux/pm_qos.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -300,6 +301,7 @@ struct msm_vidc_inst {
 	u32 pic_struct;
 	u32 colour_space;
 	u32 operating_rate;
+	struct pm_qos_request pm_qos;
 };
 
 extern struct msm_vidc_drv *vidc_driver;
