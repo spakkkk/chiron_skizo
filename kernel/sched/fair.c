@@ -5318,6 +5318,12 @@ static void record_wakee(struct task_struct *p)
 	}
 }
 
+/*
+ * Called to migrate a waking task; as blocked tasks retain absolute vruntime
+ * the migration needs to deal with this by subtracting the old and adding the
+ * new min_vruntime -- the latter is done by enqueue_entity() when placing
+ * the task on the new runqueue.
+ */
 static void task_waking_fair(struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
