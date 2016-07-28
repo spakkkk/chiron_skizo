@@ -1714,7 +1714,7 @@ unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 	*contended = COMPACT_CONTENDED_NONE;
 
 	/* Check if the GFP flags allow compaction */
-	if (!order || !may_enter_fs || !may_perform_io)
+	if (!may_enter_fs || !may_perform_io)
 		return COMPACT_SKIPPED;
 
 	mm_event_start(&event_ts);
