@@ -604,7 +604,7 @@ static int kgsl_contiguous_vmfault(struct kgsl_memdesc *memdesc,
 
 static void kgsl_cma_coherent_free(struct kgsl_memdesc *memdesc)
 {
-	struct dma_attrs *attrs = NULL;
+	unsigned long attrs = 0;
 
 	if (memdesc->hostptr) {
 		if (memdesc->priv & KGSL_MEMDESC_SECURE) {
@@ -612,7 +612,7 @@ static void kgsl_cma_coherent_free(struct kgsl_memdesc *memdesc)
 				&kgsl_driver.stats.secure);
 
 			kgsl_cma_unlock_secure(memdesc);
-			attrs = &memdesc->attrs;
+			attrs = memdesc->attrs;
 		} else
 			atomic_long_sub(memdesc->size,
 				&kgsl_driver.stats.coherent);
@@ -1230,7 +1230,7 @@ int kgsl_sharedmem_alloc_contig(struct kgsl_device *device,
 	memdesc->dev = device->dev->parent;
 
 	memdesc->hostptr = dma_alloc_attrs(memdesc->dev, (size_t) size,
-		&memdesc->physaddr, GFP_KERNEL, NULL);
+		&memdesc->physaddr, GFP_KERNEL, 0);
 
 	if (memdesc->hostptr == NULL) {
 		result = -ENOMEM;
@@ -1338,11 +1338,10 @@ static int kgsl_cma_alloc_secure(struct kgsl_device *device,
 	memdesc->ops = &kgsl_cma_ops;
 	memdesc->dev = iommu->ctx[KGSL_IOMMU_CONTEXT_SECURE].dev;
 
-	init_dma_attrs(&memdesc->attrs);
-	dma_set_attr(DMA_ATTR_STRONGLY_ORDERED, &memdesc->attrs);
+	memdesc->attrs |= DMA_ATTR_STRONGLY_ORDERED;
 
 	memdesc->hostptr = dma_alloc_attrs(memdesc->dev, aligned,
-		&memdesc->physaddr, GFP_KERNEL, &memdesc->attrs);
+		&memdesc->physaddr, GFP_KERNEL, memdesc->attrs);
 
 	if (memdesc->hostptr == NULL) {
 		result = -ENOMEM;
