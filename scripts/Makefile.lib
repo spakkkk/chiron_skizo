@@ -423,7 +423,6 @@ cmd_xzmisc = (cat $(filter-out FORCE,$^) | \
 # ---------------------------------------------------------------------------
 
 # Default sed regexp - multiline due to syntax constraints
-<<<<<<< HEAD
 #
 # Use [:space:] because LLVM's integrated assembler inserts <tab> around
 # the .ascii directive whereas GCC keeps the <space> as-is.
@@ -432,12 +431,6 @@ define sed-offsets
 	/^->/{s:->#\(.*\):/* \1 */:; \
 	s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; \
 	s:->::; p;}'
-=======
-define sed-offsets
-	"/^->/{s:->#\(.*\):/* \1 */:; \
-	s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; \
-	s:->::; p;}"
->>>>>>> 9f06651c80ae4a... UPSTREAM: kbuild: Consolidate header generation from ASM offset information
 endef
 
 # Use filechk to avoid rebuilds when a header changes, but the resulting file
