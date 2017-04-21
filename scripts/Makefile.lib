@@ -435,7 +435,6 @@ define sed-offsets
 =======
 define sed-offsets
 	"/^->/{s:->#\(.*\):/* \1 */:; \
-	s:^->\([^ ]*\) [\$$#]*\([-0-9]*\) \(.*\):#define \1 \2 /* \3 */:; \
 	s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; \
 	s:->::; p;}"
 >>>>>>> 9f06651c80ae4a... UPSTREAM: kbuild: Consolidate header generation from ASM offset information
