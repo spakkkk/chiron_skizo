@@ -49,18 +49,17 @@ static void __call_rcu(struct rcu_head *head,
 
 #include "tiny_plugin.h"
 
-#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
-
-/*
- * Test whether RCU thinks that the current CPU is idle.
- */
-bool notrace __rcu_is_watching(void)
+void rcu_barrier_bh(void)
 {
-	return true;
+	wait_rcu_gp(call_rcu_bh);
 }
-EXPORT_SYMBOL(__rcu_is_watching);
+EXPORT_SYMBOL(rcu_barrier_bh);
 
-#endif /* defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
+void rcu_barrier_sched(void)
+{
+	wait_rcu_gp(call_rcu_sched);
+}
+EXPORT_SYMBOL(rcu_barrier_sched);
 
 /*
  * Helper function for rcu_sched_qs() and rcu_bh_qs().
