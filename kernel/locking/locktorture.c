@@ -641,8 +641,7 @@ static void __torture_print_stats(char *page,
 {
 	bool fail = 0;
 	int i, n_stress;
-	long max = 0;
-	long min = statp[0].n_lock_acquired;
+	long max = 0, min = statp ? statp[0].n_lock_acquired : 0;
 	long long sum = 0;
 
 	n_stress = write ? cxt.nrealwriters_stress : cxt.nrealreaders_stress;
@@ -749,7 +748,7 @@ static void lock_torture_cleanup(void)
 	 * such, only perform the underlying torture-specific cleanups,
 	 * and avoid anything related to locktorture.
 	 */
-	if (!cxt.lwsa)
+	if (!cxt.lwsa && !cxt.lrsa)
 		goto end;
 
 	if (writer_tasks) {
@@ -822,6 +821,13 @@ static int __init lock_torture_init(void)
 		firsterr = -EINVAL;
 		goto unwind;
 	}
+
+	if (nwriters_stress == 0 && nreaders_stress == 0) {
+		pr_alert("lock-torture: must run at least one locking thread\n");
+		firsterr = -EINVAL;
+		goto unwind;
+	}
+
 	if (cxt.cur_ops->init)
 		cxt.cur_ops->init();
 
@@ -845,6 +851,14 @@ static int __init lock_torture_init(void)
 #endif
 
 	/* Initialize the statistics so that each run gets its own numbers. */
+	if (nwriters_stress) {
+		lock_is_write_held = 0;
+		cxt.lwsa = kmalloc(sizeof(*cxt.lwsa) * cxt.nrealwriters_stress, GFP_KERNEL);
+		if (cxt.lwsa == NULL) {
+			VERBOSE_TOROUT_STRING("cxt.lwsa: Out of memory");
+			firsterr = -ENOMEM;
+			goto unwind;
+		}
 
 	lock_is_write_held = 0;
 	cxt.lwsa = kmalloc_array(cxt.nrealwriters_stress, sizeof(*cxt.lwsa),
