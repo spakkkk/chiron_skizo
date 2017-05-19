@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/mm.h>
 
 static unsigned sev_pos(const struct v4l2_subscribed_event *sev, unsigned idx)
 {
@@ -228,7 +229,8 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	if (elems < 1)
 		elems = 1;
 
-	sev = kzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems, GFP_KERNEL);
+	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
+		       GFP_KERNEL);
 	if (!sev)
 		return -ENOMEM;
 	for (i = 0; i < elems; i++)
