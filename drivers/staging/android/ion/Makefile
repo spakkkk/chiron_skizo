@@ -12,7 +12,6 @@ obj-$(CONFIG_ION_TEGRA) += tegra/
 obj-$(CONFIG_ION_MSM) += msm/
 obj-$(CONFIG_ION_MSM) += ion_system_secure_heap.o
 
-#TODO: remove me b/62058353
-# WE SHOULD FIX THIS ONE
+# TODO: remove me b/62057517
 subdir-ccflags-y += \
-	-Wno-enum-conversion
+	-Wno-constant-logical-operand
