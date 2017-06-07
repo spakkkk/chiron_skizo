@@ -623,9 +623,9 @@ static int kcal_ctrl_probe(struct platform_device *pdev)
 
 	lut_data->queue_changes = false;
 
-	//mdss_mdp_kcal_update_pcc(lut_data);
-	//mdss_mdp_kcal_update_pa(lut_data);
-	//mdss_mdp_kcal_update_igc(lut_data);
+	mdss_mdp_kcal_update_pcc(lut_data);
+	mdss_mdp_kcal_update_pa(lut_data);
+	mdss_mdp_kcal_update_igc(lut_data);
 
 #if defined(CONFIG_MMI_PANEL_NOTIFICATIONS)
 	lut_data->panel_nb.display_on = mdss_mdp_kcal_update_queue;
