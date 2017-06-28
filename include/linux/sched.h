@@ -2457,6 +2457,7 @@ static inline void set_wake_up_idle(bool enabled)
 {
 	/* do nothing for now */
 }
+extern bool cpupri_check_rt(void);
 #else
 static inline void do_set_cpus_allowed(struct task_struct *p,
 				      const struct cpumask *new_mask)
