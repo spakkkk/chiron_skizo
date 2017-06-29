@@ -1811,7 +1811,7 @@ struct task_struct {
 	struct prev_cputime prev_cputime;
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 	seqcount_t vtime_seqcount;
-	unsigned long long vtime_snap;
+	unsigned long long vtime_starttime;
 	enum {
 		/* Task is sleeping or running in a CPU with VTIME inactive */
 		VTIME_INACTIVE = 0,
@@ -1819,7 +1819,7 @@ struct task_struct {
 		VTIME_USER,
 		/* Task runs in kernelspace in a CPU with VTIME active */
 		VTIME_SYS,
-	} vtime_snap_whence;
+	} vtime_state;
 #endif
 	unsigned long nvcsw, nivcsw; /* context switch counts */
 	u64 start_time;		/* monotonic time in nsec */
