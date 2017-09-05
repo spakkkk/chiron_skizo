@@ -778,6 +778,8 @@ static int __init cpu_ib_init(void)
 
 	fb_register_client(&fb_notifier_callback_nb);
 
+	set_boost_bit(b, DRIVER_ENABLED);
+
 	return 0;
 
 input_unregister:
