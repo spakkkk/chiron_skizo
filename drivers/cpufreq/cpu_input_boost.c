@@ -767,6 +767,19 @@ free_b:
 	return NULL;
 }
 
+static void set_default_value(void)
+{
+	struct boost_policy *b = boost_policy_g;
+	struct ib_config *ib = &b->ib;
+	struct fb_policy *fb = &b->fb;
+
+	set_boost_bit(b, DRIVER_ENABLED);
+	ib->freq[0] = 1036800;
+	ib->freq[1] = 1056000;
+	ib->duration_ms = 500;
+	fb->fb_duration_ms = 1000;
+}
+
 static int __init cpu_ib_init(void)
 {
 	struct boost_policy *b;
@@ -810,7 +823,8 @@ static int __init cpu_ib_init(void)
 
 	fb_register_client(&fb_notifier_callback_nb);
 
-	set_boost_bit(b, DRIVER_ENABLED);
+	/* Set default device attributes values */
+	set_default_value();
 
 	return 0;
 
