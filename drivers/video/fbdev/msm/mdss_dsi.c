@@ -39,6 +39,10 @@
 #include <linux/state_notifier.h>
 #endif
 
+#ifdef CONFIG_STATE_NOTIFIER
+#include <linux/state_notifier.h>
+#endif
+
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
 
 /* Master structure to hold all the information about the DSI/panel */
