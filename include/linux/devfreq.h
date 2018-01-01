@@ -184,6 +184,7 @@ struct devfreq {
 	unsigned long last_stat_updated;
 
 	bool do_wake_boost;
+	bool needs_wake_boost;
 };
 
 #if defined(CONFIG_PM_DEVFREQ)
