@@ -190,13 +190,14 @@ schedtune_accept_deltas(int nrg_delta, int cap_delta,
 	int perf_constrain_idx;
 
 	/* Optimal (O) region */
-	if (nrg_delta < 0 && cap_delta > 0) {
+	if (nrg_delta <= 0 && cap_delta >= 0) {
 		trace_sched_tune_filter(nrg_delta, cap_delta, 0, 0, 1, 0);
 		return INT_MAX;
 	}
 
 	/* Suboptimal (S) region */
-	if (nrg_delta > 0 && cap_delta < 0) {
+	if ((nrg_delta >= 0 && cap_delta < 0) ||
+	    (nrg_delta > 0 && cap_delta <= 0)) {
 		trace_sched_tune_filter(nrg_delta, cap_delta, 0, 0, -1, 5);
 		return -INT_MAX;
 	}
