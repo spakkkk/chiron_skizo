@@ -234,6 +234,7 @@ static int do_cpu_boost(struct notifier_block *nb,
 	struct boost_policy *b = boost_policy_g;
 	struct ib_config *ib = &b->ib;
 	uint32_t boost_freq, state;
+	unsigned int min_freq_boosted;
 	bool ret;
 
 	if (action != CPUFREQ_ADJUST)
@@ -242,11 +243,16 @@ static int do_cpu_boost(struct notifier_block *nb,
 	state = get_boost_state(b);
 
 	/*
+	* Save policy->min that was set by user/system before boosting
+	*/
+	min_freq_boosted = policy->min;
+
+	/*
 	 * Don't do anything when the driver is disabled, unless there are
 	 * still CPUs that need to be unboosted.
 	 */
 	if (!(state & DRIVER_ENABLED) &&
-		policy->min == policy->cpuinfo.min_freq)
+		min_freq_boosted == policy->cpuinfo.min_freq)
 		return NOTIFY_OK;
 
 	/* Boost CPU to max frequency for wake boost */
@@ -271,7 +277,11 @@ static int do_cpu_boost(struct notifier_block *nb,
 			set_boost_freq(b, policy->cpu, boost_freq);
 		policy->min = min(policy->max, boost_freq);
 	} else {
-		policy->min = policy->cpuinfo.min_freq;
+		/*
+		* Set policy->min same as we had it before boosting.
+		* Don't drop it to cpuinfo.min.
+		*/
+		policy->min = min_freq_boosted;
 	}
 
 	return NOTIFY_OK;
