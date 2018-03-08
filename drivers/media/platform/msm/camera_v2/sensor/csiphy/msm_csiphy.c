@@ -284,9 +284,9 @@ static int msm_csiphy_3phase_lane_config(
 				csiphy_3ph_reg.mipi_csiphy_3ph_lnn_ctrl51.addr +
 				0x200*i);
 		}
-
 		if ((csiphy_dev->hw_version == CSIPHY_VERSION_V35) &&
-			(csiphy_params->data_rate > two_gbps)) {
+			((csiphy_params->data_rate /
+			csiphy_params->lane_cnt) > 2 * GBPS)) {
 			msm_camera_io_w(0x40,
 				csiphybase +
 				csiphy_dev->ctrl_reg->csiphy_3ph_reg.
