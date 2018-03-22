@@ -11310,28 +11310,6 @@ static void wlan_hdd_state_ctrl_param_destroy(void)
 }
 #endif
 
-#ifndef MODULE
-static int hdd_wait_for_probe_complete(void)
-{
-	unsigned long rc;
-
-	rc = wait_for_completion_timeout(&wlan_start_comp,
-				msecs_to_jiffies(HDD_WLAN_START_WAIT_TIME));
-
-	if (!rc) {
-		hdd_alert("Timed-out waiting for Probe to complete");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-#else
-static int hdd_wait_for_probe_complete(void)
-{
-	return 0;
-}
-#endif
-
 /**
  * __hdd_module_init - Module init helper
  *
