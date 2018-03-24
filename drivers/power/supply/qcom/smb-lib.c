@@ -27,8 +27,13 @@
 #include "step-chg-jeita.h"
 #include "storm-watch.h"
 
+<<<<<<< HEAD
 #ifdef CONFIG_FORCE_FAST_CHARGE
 #include <linux/fastchg.h>
+=======
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#include <linux/fb.h>
+>>>>>>> ac6ba815d46c6... smb-lib: add charging current limitting
 #endif
 
 #define smblib_err(chg, fmt, ...)		\
@@ -1936,6 +1941,7 @@ int smblib_set_prop_batt_capacity(struct smb_charger *chg,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
 #define SCREEN_ON_ICL		1600000
 #define SCREEN_ON_CHECK_MS	90000
 #define SCREEN_OFF_CHECK_MS	5000
@@ -2007,9 +2013,22 @@ end:
 	return NOTIFY_OK;
 }
 
+#endif
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+#define MAX_CURRENT_PERCENT		100
+#define HIGH_CURRENT_PERCENT		70
+#define MEDIUM_CURRENT_PERCENT		50
+#endif
 int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 				const union power_supply_propval *val)
 {
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	int *thermal_mitigation;
+	int current_percent;
+	bool throttle_current;
+#endif
+
 	if (val->intval < 0)
 		return -EINVAL;
 
@@ -2021,19 +2040,57 @@ int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 
 	chg->system_temp_level = val->intval;
 	/* disable parallel charge in case of system temp level */
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	vote(chg->pl_disable_votable, THERMAL_DAEMON_VOTER,
+			(chg->system_temp_level > 2) ? true : false, 0);
+#else
 	vote(chg->pl_disable_votable, THERMAL_DAEMON_VOTER,
 			chg->system_temp_level ? true : false, 0);
+#endif
 
 	if (chg->system_temp_level == chg->thermal_levels)
 		return vote(chg->chg_disable_votable,
 			THERMAL_DAEMON_VOTER, true, 0);
 
 	vote(chg->chg_disable_votable, THERMAL_DAEMON_VOTER, false, 0);
+
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	throttle_current = chg->screen_on;
+
+	if (chg->system_temp_level == 0)
+		return vote(chg->usb_icl_votable, THERMAL_DAEMON_VOTER, false, 0);
+
+	switch (chg->usb_psy_desc.type) {
+	case POWER_SUPPLY_TYPE_USB_HVDCP:
+		thermal_mitigation = chg->thermal_mitigation_qc2;
+		break;
+	case POWER_SUPPLY_TYPE_USB_HVDCP_3:
+		thermal_mitigation = chg->thermal_mitigation_qc3;
+		break;
+	case POWER_SUPPLY_TYPE_USB_DCP:
+	default:
+		thermal_mitigation = chg->thermal_mitigation_dcp;
+		throttle_current = false;
+		break;
+	}
+
+	if (!throttle_current || chg->system_temp_level == 6)
+		current_percent = MAX_CURRENT_PERCENT;
+	else if (chg->system_temp_level < 3)
+		current_percent = HIGH_CURRENT_PERCENT;
+	else
+		current_percent = MEDIUM_CURRENT_PERCENT;
+
+	vote(chg->usb_icl_votable, THERMAL_DAEMON_VOTER, true,
+			thermal_mitigation[chg->system_temp_level] * current_percent / 100);
+#else
 	if (chg->system_temp_level == 0)
 		return vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, false, 0);
 
 	vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, true,
 			chg->thermal_mitigation[chg->system_temp_level]);
+#endif
+
 	return 0;
 }
 
@@ -4941,7 +4998,13 @@ int smblib_init(struct smb_charger *chg)
 	INIT_WORK(&chg->legacy_detection_work, smblib_legacy_detection_work);
 	INIT_DELAYED_WORK(&chg->uusb_otg_work, smblib_uusb_otg_work);
 	INIT_DELAYED_WORK(&chg->bb_removal_work, smblib_bb_removal_work);
+<<<<<<< HEAD
 	INIT_DELAYED_WORK(&chg->fb_state_work, smblib_fb_state_work);
+=======
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+	INIT_DELAYED_WORK(&chg->fb_state_work, smblib_fb_state_work);
+#endif
+>>>>>>> ac6ba815d46c6... smb-lib: add charging current limitting
 
 	chg->fake_capacity = -EINVAL;
 	chg->fake_input_current_limited = -EINVAL;
@@ -4977,6 +5040,10 @@ int smblib_init(struct smb_charger *chg)
 			return rc;
 		}
 
+<<<<<<< HEAD
+=======
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+>>>>>>> ac6ba815d46c6... smb-lib: add charging current limitting
 		chg->fb_state_notifier.notifier_call = smblib_fb_state_cb;
 		rc = fb_register_client(&chg->fb_state_notifier);
 		if (rc < 0) {
@@ -4984,6 +5051,10 @@ int smblib_init(struct smb_charger *chg)
 				"Couldn't register notifier rc=%d\n", rc);
 			return rc;
 		}
+<<<<<<< HEAD
+=======
+#endif
+>>>>>>> ac6ba815d46c6... smb-lib: add charging current limitting
 
 		chg->bms_psy = power_supply_get_by_name("bms");
 		chg->pl.psy = power_supply_get_by_name("parallel");
@@ -5014,7 +5085,14 @@ int smblib_deinit(struct smb_charger *chg)
 		cancel_work_sync(&chg->legacy_detection_work);
 		cancel_delayed_work_sync(&chg->uusb_otg_work);
 		cancel_delayed_work_sync(&chg->bb_removal_work);
+<<<<<<< HEAD
 		cancel_delayed_work_sync(&chg->fb_state_work);
+=======
+#ifdef CONFIG_MACH_XIAOMI_MSM8998
+		cancel_delayed_work_sync(&chg->fb_state_work);
+		fb_unregister_client(&chg->fb_state_notifier);
+#endif
+>>>>>>> ac6ba815d46c6... smb-lib: add charging current limitting
 		power_supply_unreg_notifier(&chg->nb);
 		fb_unregister_client(&chg->fb_state_notifier);
 		smblib_destroy_votables(chg);
