@@ -1656,8 +1656,14 @@ static struct cpufreq_interactive_tunables *alloc_tunable(
 	tunables->go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
 	tunables->target_loads = default_target_loads;
 	tunables->ntarget_loads = ARRAY_SIZE(default_target_loads);
-	tunables->min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
-	tunables->timer_rate = DEFAULT_TIMER_RATE;
+	if (policy->cpu == 0) {
+		tunables->fast_ramp_down = 0;
+		tunables->min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
+	} else {
+		tunables->fast_ramp_down = 1;
+		tunables->min_sample_time = DEFAULT_MIN_SAMPLE_TIME / 2;
+	}
+	tunables->timer_rate = usecs_to_jiffies(DEFAULT_TIMER_RATE);
 	tunables->boostpulse_duration_val = DEFAULT_MIN_SAMPLE_TIME;
 	tunables->timer_slack_val = DEFAULT_TIMER_SLACK;
 
