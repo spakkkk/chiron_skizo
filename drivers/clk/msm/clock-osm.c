@@ -2832,6 +2832,8 @@ static ssize_t debugfs_trace_method_get(struct file *file, char __user *buf,
 	else if (c->trace_method == XOR_PACKET)
 		len = snprintf(debug_buf, sizeof(debug_buf), "xor\n");
 
+	else
+		return -EINVAL;
 	rc = simple_read_from_buffer((void __user *) buf, count, ppos,
 				     (void *) debug_buf, len);
 
