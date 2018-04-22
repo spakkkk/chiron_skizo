@@ -5366,7 +5366,7 @@ static int cpu_util_wake(int cpu, struct task_struct *p);
  *
  *   norm_util = running_time/time ~ util/capacity
  */
-static unsigned long __cpu_norm_util(unsigned long util, unsigned long capacity)
+unsigned long __cpu_norm_util(unsigned long util, unsigned long capacity)
 {
 	if (util >= capacity)
 		return SCHED_CAPACITY_SCALE;
