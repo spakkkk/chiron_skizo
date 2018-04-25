@@ -577,7 +577,7 @@ static ssize_t iowait_boost_enable_store(struct gov_attr_set *attr_set,
 	struct eugov_tunables *tunables = to_eugov_tunables(attr_set);
 	bool enable;
 
-	if (kstrtobool(buf, &enable))
+	if (strtobool(buf, &enable))
 		return -EINVAL;
 
 	tunables->iowait_boost_enable = enable;
