@@ -3300,13 +3300,11 @@ int mdss_mdp_overlay_vsync_ctrl(struct msm_fb_data_type *mfd, int en)
 		goto end;
 	}
 
-	mdp5_data->vsync_en = en;
-
-	if (!ctl->panel_data->panel_info.cont_splash_enabled
-		&& (!mdss_mdp_ctl_is_power_on(ctl) ||
+	if (!ctl->panel_data->panel_info.cont_splash_enabled &&
+	    !mdss_mdp_ctl_is_power_on(ctl)) {
 		pr_debug("fb%d vsync pending first update en=%d, ctl power state:%d\n",
 				mfd->index, en, ctl->power_state);
-		rc = 0;
+		rc = -EPERM;
 		goto end;
 	}
 
