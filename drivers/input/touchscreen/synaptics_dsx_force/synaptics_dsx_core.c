@@ -5103,6 +5103,8 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 				"%s: Failed to register fb notifier client\n",
 				__func__);
 	}
+	rmi4_data->fb_state_workqueue = alloc_workqueue("fb-state-workqueue",
+			WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	if (rmi4_data->chip_is_tddi)
 		INIT_WORK(&rmi4_data->fb_state_work, synaptics_rmi4_fb_notifier_tddi_work);
 	else
@@ -5749,7 +5751,8 @@ static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
 	rmi4_data->fb_state_event = event;
 	rmi4_data->fb_state_transition = *(int *)(evdata->data);
 
-	schedule_work(&rmi4_data->fb_state_work);
+	queue_work(rmi4_data->fb_state_workqueue,
+			&rmi4_data->fb_state_work);
 
 	return 0;
 }
