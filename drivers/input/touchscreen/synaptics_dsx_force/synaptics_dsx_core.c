@@ -5096,6 +5096,14 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 	synaptics_rmi4_query_chip_id(rmi4_data);
 
 #ifdef CONFIG_FB
+	rmi4_data->fb_state_workqueue = alloc_workqueue("fb-state-workqueue",
+			WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+
+	if (rmi4_data->chip_is_tddi)
+		INIT_WORK(&rmi4_data->fb_state_work, synaptics_rmi4_fb_notifier_tddi_work);
+	else
+		INIT_WORK(&rmi4_data->fb_state_work, synaptics_rmi4_fb_notifier_work);
+
 	rmi4_data->fb_notifier.notifier_call = synaptics_rmi4_fb_notifier_cb;
 	retval = fb_register_client(&rmi4_data->fb_notifier);
 	if (retval < 0) {
@@ -5103,12 +5111,6 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 				"%s: Failed to register fb notifier client\n",
 				__func__);
 	}
-	rmi4_data->fb_state_workqueue = alloc_workqueue("fb-state-workqueue",
-			WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
-	if (rmi4_data->chip_is_tddi)
-		INIT_WORK(&rmi4_data->fb_state_work, synaptics_rmi4_fb_notifier_tddi_work);
-	else
-		INIT_WORK(&rmi4_data->fb_state_work, synaptics_rmi4_fb_notifier_work);
 #endif
 
 #ifdef USE_EARLYSUSPEND
