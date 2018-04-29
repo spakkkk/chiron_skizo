@@ -293,12 +293,6 @@ config CPU_FREQ_GOV_ELECTROUTIL
 
 	  If in doubt, say N.
 
-config CPU_INPUT_BOOST
-	bool "CPU Input Boost"
-	help
-	  Boosts the CPU on touchscreen and touchpad input. Boost frequencies and
-	  duration are configured via sysfs (/sys/kernel/cpu_input_boost/*).
-
 comment "CPU frequency scaling drivers"
 
 config CPU_BOOST
