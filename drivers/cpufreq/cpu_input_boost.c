@@ -400,8 +400,7 @@ static const struct input_device_id cpu_ib_ids[] = {
 		.evbit = { BIT_MASK(EV_ABS) },
 		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
 			BIT_MASK(ABS_MT_POSITION_X) |
-			BIT_MASK(ABS_MT_POSITION_Y) |
-			BIT_MASK(ABS_MT_TRACKING_ID) },
+			BIT_MASK(ABS_MT_POSITION_Y) },
 	},
 	/* touchpad */
 	{
