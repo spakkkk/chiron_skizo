@@ -21,13 +21,12 @@
 
 #define CPU_MASK(cpu) (1U << (cpu))
 
-#if defined(CONFIG_ARCH_MSM8996)
+/*
+ * For MSM8996 (big.LITTLE). CPU0 and CPU1 are LITTLE CPUs; CPU2 and CPU3 are
+ * big CPUs.
+ */
 #define LITTLE_CPU_MASK (CPU_MASK(0) | CPU_MASK(1))
-#elif defined(CONFIG_ARCH_MSM8998)
-#define LITTLE_CPU_MASK (CPU_MASK(0) | CPU_MASK(1) | CPU_MASK(2) | CPU_MASK(3))
-#else
-#error Unsupported architecture
-#endif
+#define BIG_CPU_MASK    (CPU_MASK(2) | CPU_MASK(3))
 
 /* Available bits for boost_policy state */
 #define DRIVER_ENABLED        (1U << 0)
