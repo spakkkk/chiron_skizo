@@ -603,6 +603,9 @@ static ssize_t ib_freqs_write(struct device *dev,
 	if (ret != 2)
 		return -EINVAL;
 
+	if (!freq[0] || !freq[1])
+		return -EINVAL;
+
 	/* freq[0] is assigned to LITTLE cluster, freq[1] to big cluster */
 	spin_lock(&b->lock);
 	ib->freq[0] = freq[0];
