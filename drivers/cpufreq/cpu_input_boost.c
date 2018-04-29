@@ -1,7 +1,5 @@
 /*
  * Copyright (C) 2014-2017, Sultanxda <sultanxda@gmail.com>
- *           (C) 2017, Joe Maples <joe@frap129.org>
- *           (C) 2017, Wang Han <416810799@qq.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -38,6 +36,9 @@
 #define INPUT_BOOST           (1U << 3)
 #define INPUT_REBOOST         (1U << 4)
 
+/* The duration in milliseconds for the wake boost */
+#define FB_BOOST_MS (3000)
+
 /*
  * "fb" = "framebuffer". This is the boost that occurs on framebuffer unblank,
  * AKA when the screen is turned on (wake boost). All online CPUs are boosted
@@ -46,7 +47,6 @@
 struct fb_policy {
 	struct work_struct boost_work;
 	struct delayed_work unboost_work;
-	uint32_t fb_duration_ms;
 };
 
 /*
@@ -216,7 +216,7 @@ static void fb_boost_main(struct work_struct *work)
 	update_online_cpu_policy();
 
 	queue_delayed_work(b->wq, &fb->unboost_work,
-				msecs_to_jiffies(fb->fb_duration_ms));
+				msecs_to_jiffies(FB_BOOST_MS));
 }
 
 static void fb_unboost_main(struct work_struct *work)
@@ -635,26 +635,6 @@ static ssize_t ib_duration_ms_write(struct device *dev,
 	return size;
 }
 
-static ssize_t fb_duration_ms_write(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-	struct boost_policy *b = boost_policy_g;
-	struct fb_policy *fb = &b->fb;
-	uint32_t data;
-	int ret;
-
-	ret = kstrtou32(buf, 10, &data);
-	if (ret)
-		return -EINVAL;
-
-	if (!data)
-		return -EINVAL;
-
-	fb->fb_duration_ms = data;
-
-	return size;
-}
-
 static ssize_t enabled_read(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -688,29 +668,17 @@ static ssize_t ib_duration_ms_read(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", ib->duration_ms);
 }
 
-static ssize_t fb_duration_ms_read(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct boost_policy *b = boost_policy_g;
-	struct fb_policy *fb = &b->fb;
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", fb->fb_duration_ms);
-}
-
 static DEVICE_ATTR(enabled, 0644,
 			enabled_read, enabled_write);
 static DEVICE_ATTR(ib_freqs, 0644,
 			ib_freqs_read, ib_freqs_write);
 static DEVICE_ATTR(ib_duration_ms, 0644,
 			ib_duration_ms_read, ib_duration_ms_write);
-static DEVICE_ATTR(fb_duration_ms, 0644,
-			fb_duration_ms_read, fb_duration_ms_write);
 
 static struct attribute *cpu_ib_attr[] = {
 	&dev_attr_enabled.attr,
 	&dev_attr_ib_freqs.attr,
 	&dev_attr_ib_duration_ms.attr,
-	&dev_attr_fb_duration_ms.attr,
 	NULL
 };
 
