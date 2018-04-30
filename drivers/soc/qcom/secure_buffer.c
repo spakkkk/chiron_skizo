@@ -452,4 +452,4 @@ static int __init alloc_secure_shared_memory(void)
 
 	return ret;
 }
-early_initcall(alloc_secure_shared_memory);
+pure_initcall(alloc_secure_shared_memory);

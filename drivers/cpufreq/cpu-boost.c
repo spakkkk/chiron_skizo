@@ -37,11 +37,11 @@ static struct workqueue_struct *cpu_boost_wq;
 static struct work_struct input_boost_work;
 static bool input_boost_enabled;
 
-static unsigned int input_boost_ms = 40;
+static unsigned int input_boost_ms = 80;
 module_param(input_boost_ms, uint, 0644);
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
-static int dynamic_stune_boost;
+static int dynamic_stune_boost = 4;
 module_param(dynamic_stune_boost, uint, 0644);
 #endif /* CONFIG_DYNAMIC_STUNE_BOOST */
 
@@ -181,17 +181,6 @@ static void do_input_boost_rem(struct work_struct *work)
 	pr_debug("Resetting input boost min for all CPUs\n");
 	for_each_possible_cpu(i) {
 		i_sync_info = &per_cpu(sync_info, i);
-
-		// cpu 0-3 -> silver cluster
-		// cpu 4-7 -> gold cluster
-		// to save power there's no point in boosting the
-		// gold cluster core if it doesn't have any runnable
-		// thread at this point in time
-		// since inputs are fairly common we might save some
-		// juice in the long run
-		if (i >= 4 && cpu_rq(i)->nr_running == 0)
-			continue;
-
 		i_sync_info->input_boost_min = 0;
 	}
 
@@ -216,6 +205,17 @@ static void do_input_boost(struct work_struct *work)
 	pr_debug("Setting input boost min for all CPUs\n");
 	for_each_possible_cpu(i) {
 		i_sync_info = &per_cpu(sync_info, i);
+
+		// cpu 0-3 -> silver cluster
+		// cpu 4-7 -> gold cluster
+		// to save power there's no point in boosting the
+		// gold cluster core if it doesn't have any runnable
+		// thread at this point in time
+		// since inputs are fairly common we might save some
+		// juice in the long run
+		if (i >= 4 && cpu_rq(i)->nr_running == 0)
+			continue;
+
 		i_sync_info->input_boost_min = i_sync_info->input_boost_freq;
 	}
 
