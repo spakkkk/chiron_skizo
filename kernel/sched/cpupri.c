@@ -283,7 +283,7 @@ void cpupri_cleanup(struct cpupri *cp)
  */
 bool cpupri_check_rt(void)
 {
-	int cpu = raw_smp_processor_id();
+    int cpu = raw_smp_processor_id();
 
-	return cpu_rq(cpu)->rd->cpupri.cpu_to_pri[cpu] > CPUPRI_NORMAL;
+    return cpu_rq(cpu)->rd->cpupri.cpu_to_pri[cpu] > CPUPRI_NORMAL;
 }

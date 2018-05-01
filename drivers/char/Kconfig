@@ -635,6 +635,7 @@ config MSM_RDBG
 
 config FRANDOM
 	tristate "Frandom RNG driver"
+	default y
 	help
 	  Frandom is a Linux kernel random number generator, which
 	  is 10-50 times faster than what you get from Linux' built-in
