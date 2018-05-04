@@ -420,6 +420,9 @@ static ssize_t kcal_invert_store(struct device *dev,
 	int kcal_invert, r;
 	struct kcal_lut_data *lut_data = dev_get_drvdata(dev);
 
+	if (true)
+		return count;
+
 	r = kstrtoint(buf, 10, &kcal_invert);
 	if ((r) || (kcal_invert != 0 && kcal_invert != 1) ||
 		(lut_data->invert == kcal_invert))
@@ -570,7 +573,7 @@ static int mdss_mdp_kcal_update_queue(struct device *dev)
 	if (lut_data->queue_changes) {
 		mdss_mdp_kcal_update_pcc(lut_data);
 		mdss_mdp_kcal_update_pa(lut_data);
-		mdss_mdp_kcal_update_igc(lut_data);
+		//mdss_mdp_kcal_update_igc(lut_data);
 		lut_data->queue_changes = false;
 	}
 
@@ -610,7 +613,7 @@ static int kcal_ctrl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, lut_data);
 
-	lut_data->enable = 0x1;
+	lut_data->enable = 0x0;
 	lut_data->red = DEF_PCC;
 	lut_data->green = DEF_PCC;
 	lut_data->blue = DEF_PCC;
@@ -623,9 +626,9 @@ static int kcal_ctrl_probe(struct platform_device *pdev)
 
 	lut_data->queue_changes = false;
 
-	mdss_mdp_kcal_update_pcc(lut_data);
-	mdss_mdp_kcal_update_pa(lut_data);
-	mdss_mdp_kcal_update_igc(lut_data);
+	//mdss_mdp_kcal_update_pcc(lut_data);
+	//mdss_mdp_kcal_update_pa(lut_data);
+	//mdss_mdp_kcal_update_igc(lut_data);
 
 #if defined(CONFIG_MMI_PANEL_NOTIFICATIONS)
 	lut_data->panel_nb.display_on = mdss_mdp_kcal_update_queue;
