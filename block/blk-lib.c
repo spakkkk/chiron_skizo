@@ -81,8 +81,14 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			break;
 		}
 
-		/* Make sure bi_size doesn't overflow */
-		req_sects = min_t(sector_t, nr_sects, UINT_MAX >> 9);
+		/*
+		 * Issue in chunks of the user defined max discard setting,
+		 * ensuring that bi_size doesn't overflow
+		 */
+		req_sects = min_t(sector_t, nr_sects,
+					q->limits.max_discard_sectors);
+		if (req_sects > UINT_MAX >> 9)
+			req_sects = UINT_MAX >> 9;
 
 		/*
 		 * If splitting a request, and the next starting sector would be
