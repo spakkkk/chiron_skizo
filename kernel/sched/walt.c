@@ -49,7 +49,7 @@ bool __read_mostly walt_disabled = false;
  * rollover occurs just before the tick boundary.
  */
 __read_mostly unsigned int walt_ravg_window =
-					    (20000000 / TICK_NSEC) * TICK_NSEC;
+					    (10000000 / TICK_NSEC) * TICK_NSEC;
 #define MIN_SCHED_RAVG_WINDOW ((10000000 / TICK_NSEC) * TICK_NSEC)
 #define MAX_SCHED_RAVG_WINDOW ((1000000000 / TICK_NSEC) * TICK_NSEC)
 
