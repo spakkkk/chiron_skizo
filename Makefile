@@ -303,8 +303,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -std=gnu89
-HOSTCXXFLAGS = -O3
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
+HOSTCXXFLAGS = -O2
 
 ifeq ($(shell $(HOSTCC) -v 2>&1 | grep -c "clang version"), 1)
 HOSTCFLAGS  += -Wno-unused-value -Wno-unused-parameter \
@@ -652,9 +652,9 @@ KBUILD_CFLAGS	+= $(call cc-option,-Oz,-Os)
 KBUILD_CFLAGS	+= $(call cc-disable-warning,maybe-uninitialized,)
 else
 ifeq ($(cc-name), clang)
-KBUILD_CFLAGS	+= -O3 $(call cc-option,-fsanitize=local-init) $(SCRIPT_OPT_FLAGS)
+KBUILD_CFLAGS	+= -O2 $(call cc-option,-fsanitize=local-init) $(SCRIPT_OPT_FLAGS)
 else
-KBUILD_CFLAGS   += -O2
+KBUILD_CFLAGS += -O2
 endif
 endif
 
