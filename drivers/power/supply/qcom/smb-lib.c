@@ -26,6 +26,7 @@
 #include "battery.h"
 #include "step-chg-jeita.h"
 #include "storm-watch.h"
+
 #ifdef CONFIG_FORCE_FAST_CHARGE
 #include <linux/fastchg.h>
 #endif
@@ -4995,6 +4996,7 @@ int smblib_init(struct smb_charger *chg)
 	INIT_WORK(&chg->legacy_detection_work, smblib_legacy_detection_work);
 	INIT_DELAYED_WORK(&chg->uusb_otg_work, smblib_uusb_otg_work);
 	INIT_DELAYED_WORK(&chg->bb_removal_work, smblib_bb_removal_work);
+ 
 #ifdef CONFIG_MACH_XIAOMI_MSM8998
 	INIT_DELAYED_WORK(&chg->fb_state_work, smblib_fb_state_work);
 #endif
@@ -5073,10 +5075,12 @@ int smblib_deinit(struct smb_charger *chg)
 		cancel_work_sync(&chg->legacy_detection_work);
 		cancel_delayed_work_sync(&chg->uusb_otg_work);
 		cancel_delayed_work_sync(&chg->bb_removal_work);
+   
 #ifdef CONFIG_MACH_XIAOMI_MSM8998
 		cancel_delayed_work_sync(&chg->fb_state_work);
 		fb_unregister_client(&chg->fb_state_notifier);
 #endif
+
 		power_supply_unreg_notifier(&chg->nb);
 		fb_unregister_client(&chg->fb_state_notifier);
 		smblib_destroy_votables(chg);
