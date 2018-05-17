@@ -65,7 +65,7 @@ static unsigned long compute_freq(struct memlat_hwmon_data *hw_data,
 {
 	ktime_t ts;
 	unsigned int diff;
-	unsigned long freq = 0;
+	uint64_t freq = 0;
 
 	ts = ktime_get();
 	diff = ktime_to_us(ktime_sub(ts, hw_data->prev_ts));
