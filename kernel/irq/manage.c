@@ -1119,8 +1119,7 @@ static bool is_perf_crit_irq(const char *irq_name)
 	static const char *const perf_crit_irqs[] = {
 		"MDSS",
 		"kgsl-3d0",
-		"goodix_fp-irq",
-		"soc:fingerprint_fpc",
+		"soc:fp_fpc1020"
 	};
 	int i;
 
