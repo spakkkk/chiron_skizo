@@ -1020,3 +1020,57 @@ int msm_pinctrl_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(msm_pinctrl_remove);
 
+static inline void clear_gpio_bits(unsigned int n, void __iomem *reg)
+{
+	__raw_writel_no_log(__raw_readl_no_log(reg) & ~n, reg);
+}
+
+static void __msm_gpio_install_direct_irq(struct msm_pinctrl *pctrl,
+					  unsigned int gpio,
+					  unsigned int irq,
+					  unsigned int input_polarity)
+{
+	unsigned int cfg;
+	const struct msm_pingroup *g;
+
+	g = &pctrl->soc->groups[gpio];
+
+	clear_gpio_bits(BIT(g->oe_bit), pctrl->regs + g->ctl_reg);
+	cfg = __raw_readl_no_log(pctrl->regs + g->intr_cfg_reg);
+	cfg &= ~(7 << g->intr_target_bit | BIT(g->intr_raw_status_bit)
+			| BIT(g->intr_enable_bit));
+	cfg |= g->intr_target_kpss_val << g->intr_target_bit
+		| BIT(g->dir_conn_en_bit);
+	__raw_writel_no_log(cfg, pctrl->regs + g->intr_cfg_reg);
+
+	cfg = gpio;
+	if (input_polarity)
+		cfg |= BIT(8);
+	__raw_writel_no_log(cfg, pctrl->regs_direct + 0x4 * irq);
+}
+
+int msm_gpio_install_direct_irq(unsigned int gpio,
+				unsigned int irq,
+				unsigned int input_polarity)
+{
+	unsigned long irq_flags;
+	const struct msm_pingroup *g;
+	struct msm_pinctrl *pctrl = msm_pinctrl_data;
+
+	if (!pctrl)
+		return -EINVAL;
+
+	g = &pctrl->soc->groups[gpio];
+
+	if (gpio >= pctrl->chip.ngpio || irq > pctrl->soc->dir_connect_num_irqs
+			|| g->dir_conn_en_bit == -1)
+		return -EINVAL;
+
+	spin_lock_irqsave(&pctrl->lock, irq_flags);
+	__msm_gpio_install_direct_irq(pctrl, gpio, irq, input_polarity);
+	mb(); /* ensure configuration take effect before we unlock it */
+	spin_unlock_irqrestore(&pctrl->lock, irq_flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(msm_gpio_install_direct_irq);
