@@ -31,8 +31,7 @@ arm64-obj-$(CONFIG_FUNCTION_TRACER)	+= ftrace.o entry-ftrace.o
 arm64-obj-$(CONFIG_MODULES)		+= arm64ksyms.o module.o
 arm64-obj-$(CONFIG_ARM64_MODULE_PLTS)	+= module-plts.o
 arm64-obj-$(CONFIG_PERF_EVENTS)		+= perf_regs.o perf_callchain.o
-arm64-obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event.o 			\
-					   perf_trace_counters.o		\
+arm64-obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_trace_counters.o		\
 					   perf_trace_user.o
 ifdef CONFIG_HW_PERF_EVENTS
 arm64-obj-$(CONFIG_DEBUG_FS)		+= perf_debug.o
