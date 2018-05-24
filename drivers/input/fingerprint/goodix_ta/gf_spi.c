@@ -210,18 +210,23 @@ static const struct file_operations gf_fops = {
 	.release = gf_release,
 };
 
-static void gf_set_process_nice(struct gf_dev *gf_dev, int nice) {
-	if (!gf_dev->process)
-		return;
-
-	pr_debug("%s: setting nice to %d\n", __func__, nice);
-	set_user_nice(gf_dev->process, nice);
+#define SCHED_BOOST_MS		2000
+static void gf_unboost_worker(struct work_struct *work)
+{
+	sched_set_boost(0);
 }
 
 static void gf_event_worker(struct work_struct *work)
 {
 	struct gf_dev *gf_dev = container_of(work, typeof(*gf_dev), event_work);
 	char temp[4] = {0x0};
+
+	/*
+	 * If no process has opened the char device then no one is
+	 * listening for the netlink event.
+	 */
+	if (!gf_dev->process)
+		return;
 
 	switch (gf_dev->event) {
 	/*
@@ -230,10 +235,10 @@ static void gf_event_worker(struct work_struct *work)
 	 * response on successful verification always fires.
 	 */
 	case GF_NET_EVENT_FB_BLACK:
-		gf_set_process_nice(gf_dev, -1);
+		set_user_nice(gf_dev->process, -1);
 		break;
 	case GF_NET_EVENT_FB_UNBLACK:
-		gf_set_process_nice(gf_dev, 0);
+		set_user_nice(gf_dev->process, 0);
 		break;
 	}
 
