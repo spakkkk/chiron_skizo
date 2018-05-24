@@ -240,6 +240,17 @@ static void gf_event_worker(struct work_struct *work)
 	case GF_NET_EVENT_FB_UNBLACK:
 		set_user_nice(gf_dev->process, 0);
 		break;
+	/*
+	 * IRQs are followed by fingerprint procesing,
+	 * run a sched boost to speed it up.
+	 */
+	case GF_NET_EVENT_IRQ:
+		cancel_delayed_work(&gf_dev->unboost_work);
+		sched_set_boost(1);
+		queue_delayed_work(system_power_efficient_wq,
+				&gf_dev->unboost_work,
+				msecs_to_jiffies(SCHED_BOOST_MS));
+		break;
 	}
 
 	temp[0] = gf_dev->event;
