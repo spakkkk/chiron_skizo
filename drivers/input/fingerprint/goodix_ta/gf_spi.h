@@ -47,6 +47,7 @@ struct gf_dev {
 	struct workqueue_struct *event_workqueue;
 	struct work_struct event_work;
 	struct wake_lock fp_wakelock;
+	bool display_on;
 	int event;
 
 	signed irq_gpio;
