@@ -45,12 +45,12 @@
 
 #define WAKELOCK_HOLD_TIME	500
 
-static struct gf_dev gf;
+static struct gf_device gf;
 
 static unsigned int report_home_events = 1;
 module_param(report_home_events, uint, S_IRUGO | S_IWUSR);
 
-static void gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
+static void gf_hw_reset(struct gf_device *gf_dev, unsigned int delay_ms)
 {
 	gpio_set_value(gf_dev->reset_gpio, 0);
 	msleep(delay_ms);
@@ -58,7 +58,7 @@ static void gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
 	msleep(delay_ms);
 }
 
-static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
+static void gf_kernel_key_input(struct gf_device *gf_dev, struct gf_key *gf_key)
 {
 	pr_debug("%s: received key, key=%d, value=%d\n",
 			__func__, gf_key->key, gf_key->value);
@@ -76,7 +76,7 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 
 static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct gf_dev *gf_dev = &gf;
+	struct gf_device *gf_dev = &gf;
 	struct gf_key gf_key;
 	int rc = 0;
 	u8 netlink_route = NETLINK_TEST;
@@ -118,7 +118,7 @@ static long gf_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 
 static irqreturn_t gf_irq(int irq, void *handle)
 {
-	struct gf_dev *gf_dev = handle;
+	struct gf_device *gf_dev = handle;
 
 	wake_lock_timeout(&gf_dev->fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
 
@@ -130,7 +130,7 @@ static irqreturn_t gf_irq(int irq, void *handle)
 
 static int gf_open(struct inode *inode, struct file *filp)
 {
-	struct gf_dev *gf_dev = &gf;
+	struct gf_device *gf_dev = &gf;
 	int rc;
 
 	gf_dev->process = current;
@@ -184,7 +184,7 @@ error_reset_gpio:
 
 static int gf_release(struct inode *inode, struct file *filp)
 {
-	struct gf_dev *gf_dev = filp->private_data;
+	struct gf_device *gf_dev = filp->private_data;
 
 	if (--gf_dev->users != 0)
 		goto no_config;
@@ -222,7 +222,7 @@ static void gf_unboost_worker(struct work_struct *work)
 
 static void gf_event_worker(struct work_struct *work)
 {
-	struct gf_dev *gf_dev = container_of(work, typeof(*gf_dev), event_work);
+	struct gf_device *gf_dev = container_of(work, typeof(*gf_dev), event_work);
 	char temp[4] = {0x0};
 
 	/*
@@ -268,7 +268,7 @@ static int gf_fb_state_callback(struct notifier_block *nb,
 		unsigned long type, void *data)
 {
 	struct fb_event *evdata = data;
-	struct gf_dev *gf_dev;
+	struct gf_device *gf_dev;
 	unsigned int blank;
 
 	if (type != FB_EVENT_BLANK)
@@ -279,7 +279,7 @@ static int gf_fb_state_callback(struct notifier_block *nb,
 
 	pr_debug("%s: type=%d\n", __func__, (int)type);
 
-	gf_dev = container_of(nb, struct gf_dev, notifier);
+	gf_dev = container_of(nb, struct gf_device, notifier);
 
 	blank = *(int *)(evdata->data);
 	switch (blank) {
@@ -305,7 +305,7 @@ static struct notifier_block gf_fb_notifier = {
 
 static int gf_probe(struct platform_device *pdev)
 {
-	struct gf_dev *gf_dev = &gf;
+	struct gf_device *gf_dev = &gf;
 	struct device *dev;
 	int major;
 	int rc = 0;
@@ -398,7 +398,7 @@ error_dt:
 
 static int gf_remove(struct platform_device *pdev)
 {
-	struct gf_dev *gf_dev = &gf;
+	struct gf_device *gf_dev = &gf;
 
 	netlink_exit();
 
