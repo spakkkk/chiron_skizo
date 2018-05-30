@@ -21,12 +21,14 @@
 
 #include "internals.h"
 
-static const char *const perf_irq_names[] = {
-	"MDSS",
-	"kgsl-3d0",
-	"soc:fp_fpc1020"
+struct irq_desc_list {
+	struct list_head list;
+	struct irq_desc *desc;
+} perf_crit_irqs = {
+	.list = LIST_HEAD_INIT(perf_crit_irqs.list)
 };
-static unsigned int perf_irq_nums[ARRAY_SIZE(perf_irq_names)] __read_mostly;
+
+static DEFINE_RAW_SPINLOCK(perf_irqs_lock);
 
 #ifdef CONFIG_IRQ_FORCED_THREADING
 __read_mostly bool force_irqthreads;
@@ -1121,58 +1123,70 @@ setup_irq_thread(struct irqaction *new, unsigned int irq, bool secondary)
 	return 0;
 }
 
-static bool is_perf_crit_irq(struct irqaction *action)
+static void add_desc_to_perf_list(struct irq_desc *desc)
 {
-	static const size_t len = ARRAY_SIZE(perf_irq_names);
-	int i;
+	struct irq_desc_list *item;
+	unsigned long flags;
 
-	for (i = 0; i < len; i++) {
-		if (!strcmp(perf_irq_names[i], action->name))
-			break;
-	}
+	item = kmalloc(sizeof(*item), GFP_ATOMIC);
+	if (!item)
+		return;
 
-	if (i == len)
-		return false;
+	item->desc = desc;
 
-	for (i = 0; i < len; i++) {
-		if (!perf_irq_nums[i]) {
-			perf_irq_nums[i] = action->irq;
-			break;
-		}
-	}
-
-	return true;
+	raw_spin_lock_irqsave(&perf_irqs_lock, flags);
+	list_add(&item->list, &perf_crit_irqs.list);
+	raw_spin_unlock_irqrestore(&perf_irqs_lock, flags);
 }
 
-static void affine_one_irq(struct irqaction *action, struct irq_data *data)
+static void affine_one_perf_thread(struct task_struct *t)
 {
-	static const unsigned long big_cluster_cpus = 0xf0;
-	const struct cpumask *mask = to_cpumask(&big_cluster_cpus);
+	t->flags |= PF_PERF_CRITICAL;
+	set_cpus_allowed_ptr(t, cpu_perf_mask);
+}
 
-	irq_set_affinity_locked(data, mask, true);
-	if (action->thread)
-		kthread_bind_mask(action->thread, mask);
+static void unaffine_one_perf_thread(struct task_struct *t)
+{
+	t->flags &= ~PF_PERF_CRITICAL;
+	set_cpus_allowed_ptr(t, cpu_all_mask);
+}
+
+void unaffine_perf_irqs(void)
+{
+	struct irq_desc_list *data;
+	unsigned long outer_flags;
+
+	raw_spin_lock_irqsave(&perf_irqs_lock, outer_flags);
+	list_for_each_entry(data, &perf_crit_irqs.list, list) {
+		struct irq_desc *desc = data->desc;
+		unsigned long flags;
+
+		raw_spin_lock_irqsave(&desc->lock, flags);
+		irq_set_affinity_locked(&desc->irq_data, cpu_all_mask, true);
+		if (desc->action->thread)
+			unaffine_one_perf_thread(desc->action->thread);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
+	}
+	raw_spin_unlock_irqrestore(&perf_irqs_lock, outer_flags);
 }
 
 void reaffine_perf_irqs(void)
 {
-	static const size_t len = ARRAY_SIZE(perf_irq_nums);
-	unsigned long flags;
-	int i;
+	struct irq_desc_list *data;
+	unsigned long outer_flags;
 
-	for (i = 0; i < len; i++) {
-		unsigned int irq = perf_irq_nums[i];
-		struct irq_desc *desc;
-
-		if (!irq)
-			break;
-
-		desc = irq_to_desc(irq);
+	raw_spin_lock_irqsave(&perf_irqs_lock, outer_flags);
+	list_for_each_entry(data, &perf_crit_irqs.list, list) {
+		struct irq_desc *desc = data->desc;
+		unsigned long flags;
 
 		raw_spin_lock_irqsave(&desc->lock, flags);
-		affine_one_irq(desc->action, &desc->irq_data);
+		irq_set_affinity_locked(&desc->irq_data, cpu_perf_mask, true);
+		if (desc->action->thread)
+			affine_one_perf_thread(desc->action->thread);
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
+	raw_spin_unlock_irqrestore(&perf_irqs_lock, outer_flags);
 }
 
 /*
@@ -1235,6 +1249,9 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 			if (ret)
 				goto out_thread;
 		}
+
+		if (new->flags & IRQF_PERF_CRITICAL)
+			affine_one_perf_thread(new->thread);
 	}
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL)) {
@@ -1397,10 +1414,13 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		}
 
 		/* Set default affinity mask once everything is setup */
-		if (is_perf_crit_irq(new))
-			affine_one_irq(new, &desc->irq_data);
-		else
+		if (new->flags & IRQF_PERF_CRITICAL) {
+			add_desc_to_perf_list(desc);
+			irq_set_affinity_locked(&desc->irq_data,
+				cpu_perf_mask, true);
+		} else {
 			setup_affinity(desc, mask);
+		}
 
 	} else if (new->flags & IRQF_TRIGGER_MASK) {
 		unsigned int nmsk = new->flags & IRQF_TRIGGER_MASK;
