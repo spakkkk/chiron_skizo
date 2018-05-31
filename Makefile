@@ -1537,8 +1537,6 @@ clean: $(clean-dirs)
 		-o -name '*.[oa].objects' \
 		-o -name '*.o.symversions' \
 		-o -name '*.modversions' \) -type f -print | xargs rm -f
-		-o -name '*.ll' \
-		-o -name '*.gcno' \) -type f -print | xargs rm -f
 
 # Generate tags for editors
 # ---------------------------------------------------------------------------
