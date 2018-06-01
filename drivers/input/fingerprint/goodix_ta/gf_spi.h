@@ -37,7 +37,7 @@ enum {
 
 #define NETLINK_TEST 25
 
-struct gf_dev {
+struct gf_device {
 	struct class *cls;
 	dev_t devt;
 
@@ -47,8 +47,10 @@ struct gf_dev {
 	struct workqueue_struct *event_workqueue;
 	struct work_struct event_work;
 	struct wake_lock fp_wakelock;
+	bool display_on;
 	int event;
 
+	bool irq_enabled;
 	signed irq_gpio;
 	signed reset_gpio;
 
@@ -56,6 +58,9 @@ struct gf_dev {
 	int irq;
 
 	struct task_struct *process;
+
+	bool enable_key_events;
+	bool proximity_state;
 };
 
 void sendnlmsg(char *message);

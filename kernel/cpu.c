@@ -450,10 +450,14 @@ out_release:
 
 int cpu_down(unsigned int cpu)
 {
+	struct cpumask newmask;
 	int err;
 
-	/* Some kthreads require one big-cluster CPU to stay online */
-	if (cpu == 4)
+	cpumask_andnot(&newmask, cpu_online_mask, cpumask_of(cpu));
+
+	/* One big cluster CPU and one little cluster CPU must remain online */
+	if (!cpumask_intersects(&newmask, cpu_perf_mask) ||
+		!cpumask_intersects(&newmask, cpu_lp_mask))
 		return -EINVAL;
 
 	cpu_maps_update_begin();
@@ -637,6 +641,7 @@ int disable_nonboot_cpus(void)
 	int cpu, first_cpu, error = 0;
 
 	cpu_maps_update_begin();
+	unaffine_perf_irqs();
 	first_cpu = cpumask_first(cpu_online_mask);
 	/*
 	 * We take down all of the non-boot CPUs in one shot to avoid races
@@ -704,12 +709,6 @@ void enable_nonboot_cpus(void)
 		trace_suspend_resume(TPS("CPU_ON"), cpu, false);
 		if (!error) {
 			pr_debug("CPU%d is up\n", cpu);
-			cpu_device = get_cpu_device(cpu);
-			if (!cpu_device)
-				pr_err("%s: failed to get cpu%d device\n",
-				       __func__, cpu);
-			else
-				kobject_uevent(&cpu_device->kobj, KOBJ_ONLINE);
 			continue;
 		}
 		pr_warn("Error taking CPU%d up: %d\n", cpu, error);
@@ -853,6 +852,15 @@ EXPORT_SYMBOL(cpu_active_mask);
 static DECLARE_BITMAP(cpu_isolated_bits, CONFIG_NR_CPUS) __read_mostly;
 const struct cpumask *const cpu_isolated_mask = to_cpumask(cpu_isolated_bits);
 EXPORT_SYMBOL(cpu_isolated_mask);
+
+#define LITTLE_CPU_MASK 0xf
+static const unsigned long little_cluster_cpus = LITTLE_CPU_MASK;
+const struct cpumask *const cpu_lp_mask = to_cpumask(&little_cluster_cpus);
+EXPORT_SYMBOL(cpu_lp_mask);
+
+static const unsigned long big_cluster_cpus = ((1UL << NR_CPUS) - 1) & ~LITTLE_CPU_MASK;
+const struct cpumask *const cpu_perf_mask = to_cpumask(&big_cluster_cpus);
+EXPORT_SYMBOL(cpu_perf_mask);
 
 void set_cpu_possible(unsigned int cpu, bool possible)
 {

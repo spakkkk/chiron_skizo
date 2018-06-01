@@ -87,12 +87,34 @@ int vfs_fstat(unsigned int fd, struct kstat *stat)
 }
 EXPORT_SYMBOL(vfs_fstat);
 
+static bool is_blacklisted_file(const char __user *filename)
+{
+	static const char *const file_blacklist[] = {
+		"/vendor/bin/msm_irqbalance"
+	};
+	/* EMBEDDED_NAME_MAX is too big for a stack allocation, so reduce it */
+	char kname[EMBEDDED_NAME_MAX / 4];
+	int i;
+
+	strncpy_from_user(kname, filename, sizeof(kname));
+
+	for (i = 0; i < ARRAY_SIZE(file_blacklist); i++) {
+		if (!strcmp(kname, file_blacklist[i]))
+			return true;
+	}
+
+	return false;
+}
+
 int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
 		int flag)
 {
 	struct path path;
 	int error = -EINVAL;
 	unsigned int lookup_flags = 0;
+
+	if (is_blacklisted_file(filename))
+		return -EACCES;
 
 	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
 		      AT_EMPTY_PATH)) != 0)

@@ -274,8 +274,96 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	cmdreq.rlen = 0;
 	cmdreq.cb = NULL;
 
-	if (ctrl->bklt_dcs_op_mode == DSI_HS_MODE)
-		cmdreq.flags |= CMD_REQ_HS_MODE;
+	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+}
+
+static void mdss_dsi_panel_set_alpm_mode(struct mdss_dsi_ctrl_pdata *ctrl,
+					 enum alpm_mode_type mode,
+					 u32 extra_flags)
+{
+	struct dsi_panel_cmds *pcmds;
+	u32 flags = CMD_REQ_COMMIT | CMD_REQ_MDP_IDLE | extra_flags;
+
+	if (mode >= ALPM_MODE_MAX) {
+		pr_err("Invalid alpm_mode=%d\n", mode);
+		return;
+	}
+
+	pcmds = &ctrl->alpm_mode_cmds[mode];
+	if (pcmds->cmd_cnt == 0) {
+		pr_warn("%s: alpm mode=%d not supported\n",
+			__func__, mode);
+		return;
+	}
+
+	pr_info("%s: ndx=%d mode=%d\n", __func__, ctrl->ndx, mode);
+	mdss_dsi_panel_cmds_send(ctrl, pcmds, flags);
+}
+
+static void mdss_dsi_bl_update_alpm_mode(struct mdss_dsi_ctrl_pdata *ctrl,
+					 u32 bl_level)
+{
+	enum alpm_mode_type alpm_mode;
+	bool is_transition = false;
+
+	if (!bl_level) {
+		alpm_mode = ALPM_MODE_OFF;
+	} else {
+		is_transition = ctrl->alpm_mode != ALPM_MODE_OFF;
+		if ((bl_level < ctrl->alpm_dim_threshold) &&
+		    ctrl->alpm_mode_cmds[ALPM_MODE_DIM].cmd_cnt)
+			alpm_mode = ALPM_MODE_DIM;
+		else if (bl_level < ctrl->alpm_bl_threshold)
+			alpm_mode = ALPM_MODE_LOW;
+		else if ((bl_level > ctrl->alpm_bl_threshold) &&
+			 ctrl->alpm_mode_cmds[ALPM_MODE_BRIGHT].cmd_cnt)
+			alpm_mode = ALPM_MODE_BRIGHT;
+		else
+			alpm_mode = ALPM_MODE_HIGH;
+	}
+
+	if (alpm_mode != ctrl->alpm_mode) {
+		ctrl->alpm_mode = alpm_mode;
+		if (is_transition) {
+			enum alpm_mode_type new_mode;
+			if (alpm_mode == ALPM_MODE_DIM)
+				new_mode = ALPM_MODE_TRANSITION_DIM;
+			else if (alpm_mode == ALPM_MODE_LOW)
+				new_mode = ALPM_MODE_TRANSITION_LOW;
+			else if (alpm_mode == ALPM_MODE_BRIGHT)
+				new_mode = ALPM_MODE_TRANSITION_BRIGHT;
+			else
+				new_mode = ALPM_MODE_TRANSITION_HIGH;
+
+			/* allow transition if there's a command for it */
+			if (ctrl->alpm_mode_cmds[new_mode].cmd_cnt) {
+				pr_debug("%s: new alpm mode=%d old=%d\n",
+					 __func__, new_mode, alpm_mode);
+				alpm_mode = new_mode;
+			}
+		}
+
+		if (ctrl->ctrl_state & CTRL_STATE_PANEL_LP)
+			mdss_dsi_panel_set_alpm_mode(ctrl, alpm_mode,
+						     CMD_CLK_CTRL);
+	}
+}
+
+void mdss_dsi_err_detect_irq_control(struct mdss_dsi_ctrl_pdata *ctrl_pdata, bool enable)
+{
+	int irq;
+
+	if (!gpio_is_valid(ctrl_pdata->disp_err_detect_gpio))
+		  return;
+
+	if (ctrl_pdata->err_detect_irq_disabled != enable)
+		return;
+	ctrl_pdata->err_detect_irq_disabled = !enable;
+
+	irq = gpio_to_irq(ctrl_pdata->disp_err_detect_gpio);
+
+	if (enable)
+		enable_irq(irq);
 	else
 		cmdreq.flags |= CMD_REQ_LP_MODE;
 
