@@ -103,17 +103,16 @@ int msm_camera_diag_init(void)
 {
 	s_diag_clk_list.clk_num = 0;
 	s_diag_clk_list.clk_capacity = MAX_CLK_NUM;
-	s_diag_clk_list.clk_infolist = kzalloc(
-				sizeof(struct msm_ais_diag_clk_info_t) *
-				s_diag_clk_list.clk_capacity,
-				GFP_KERNEL);
+	s_diag_clk_list.clk_infolist = kcalloc(s_diag_clk_list.clk_capacity,
+					       sizeof(struct msm_ais_diag_clk_info_t),
+					       GFP_KERNEL);
 
 	if (!s_diag_clk_list.clk_infolist)
 		return -ENOMEM;
 
-	s_diag_clk_list.ppclk = kzalloc(sizeof(struct clk *) *
-				s_diag_clk_list.clk_capacity,
-				GFP_KERNEL);
+	s_diag_clk_list.ppclk = kcalloc(s_diag_clk_list.clk_capacity,
+					sizeof(struct clk *),
+					GFP_KERNEL);
 	if (!s_diag_clk_list.ppclk) {
 		kfree(s_diag_clk_list.clk_infolist);
 		return -ENOMEM;

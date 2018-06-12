@@ -1373,8 +1373,8 @@ static int qti_can_probe(struct spi_device *spi)
 					 "qcom,renesas,rh850"))
 		qti_can_bittiming_const = rh850_bittiming_const;
 
-	priv_data->netdev = kzalloc(sizeof(priv_data->netdev[0]) *
-					   priv_data->max_can_channels,
+	priv_data->netdev = kcalloc(priv_data->max_can_channels,
+					   sizeof(priv_data->netdev[0]),
 					   GFP_KERNEL);
 	if (!priv_data->netdev) {
 		err = -ENOMEM;
