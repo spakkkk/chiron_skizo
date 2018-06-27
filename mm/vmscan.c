@@ -2987,6 +2987,7 @@ out:
 unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 				gfp_t gfp_mask, nodemask_t *nodemask)
 {
+	ktime_t event_ts;
 	unsigned long nr_reclaimed;
 	struct scan_control sc = {
 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
@@ -3007,6 +3008,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 	if (throttle_direct_reclaim(gfp_mask, zonelist, nodemask))
 		return 1;
 
+	mm_event_start(&event_ts);
 	trace_mm_vmscan_direct_reclaim_begin(order,
 				sc.may_writepage,
 				gfp_mask);
@@ -3014,6 +3016,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
 
 	trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
+	mm_event_end(MM_RECLAIM, event_ts);
 
 	return nr_reclaimed;
 }
@@ -3616,9 +3619,13 @@ static int kswapd(void *p)
 		 * after returning from the refrigerator
 		 */
 		if (!ret) {
+			ktime_t event_ts;
+
 			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
+			mm_event_start(&event_ts);
 			balanced_classzone_idx = balance_pgdat(pgdat, order,
 								classzone_idx);
+			mm_event_end(MM_RECLAIM, event_ts);
 		}
 	}
 
