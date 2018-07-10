@@ -292,7 +292,7 @@ static void sde_rotator_footswitch_ctrl(struct sde_rot_mgr *mgr, bool on)
 	int ret;
 
 	if (WARN_ON(mgr->regulator_enable == on)) {
-		SDEROT_ERR("Regulators already in selected mode on=%d\n", on);
+		SDEROT_DBG("Regulators already in selected mode on=%d\n", on);
 		return;
 	}
 
