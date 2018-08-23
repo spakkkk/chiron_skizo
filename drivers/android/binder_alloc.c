@@ -718,10 +718,7 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 	buffer->free = 1;
 	binder_insert_free_buffer(alloc, buffer);
 	alloc->free_async_space = alloc->buffer_size / 2;
-	barrier();
-	alloc->vma = vma;
-	alloc->vma_vm_mm = vma->vm_mm;
-	binder_alloc_set_vma(alloc, vma);
+        binder_alloc_set_vma(alloc, vma);
 	/* Same as mmgrab() in later kernel versions */
 	atomic_inc(&alloc->vma_vm_mm->mm_count);
 
