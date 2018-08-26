@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/threads.h>
 #include <linux/uaccess.h>
+#include <linux/overflow.h>
 
 #define UID_HASH_BITS 10
 
