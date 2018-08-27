@@ -40,8 +40,9 @@
 #define ARM64_HAS_32BIT_EL0			13
 #define ARM64_UNMAP_KERNEL_AT_EL0		23
 #define ARM64_HARDEN_BRANCH_PREDICTOR		24
+#define ARM64_HAS_CRC32                         25
 
-#define ARM64_NCAPS				25
+#define ARM64_NCAPS				26
 
 #ifndef __ASSEMBLY__
 
