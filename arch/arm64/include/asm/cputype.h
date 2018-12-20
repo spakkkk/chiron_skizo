@@ -111,7 +111,7 @@
 
 #include <asm/sysreg.h>
 
-#define read_cpuid(reg)			read_sysreg_s(reg)
+#define read_cpuid(reg)			read_sysreg_s(SYS_ ## reg)
 
 /*
  * The CPU ID never changes at run time, so we might as well tell the
