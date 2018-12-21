@@ -29,16 +29,14 @@
 #include <asm/cputype.h>
 #include <asm/pgtable.h>
 #include <linux/msm_rtb.h>
-#include <asm/tlbflush.h>
 #include <asm/sysreg.h>
+#include <asm/tlbflush.h>
 
 #ifdef CONFIG_PID_IN_CONTEXTIDR
 static inline void contextidr_thread_switch(struct task_struct *next)
 {
-	pid_t pid = task_pid_nr(next);
-        write_sysreg(task_pid_nr(next), contextidr_el1);
-        isb();
-	uncached_logk(LOGK_CTXID, (void *)(u64)pid);
+	write_sysreg(task_pid_nr(next), contextidr_el1);
+	isb();
 }
 #else
 static inline void contextidr_thread_switch(struct task_struct *next)
@@ -90,7 +88,7 @@ static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
 
         tcr = read_sysreg(tcr_el1);
         tcr &= ~TCR_T0SZ_MASK;
-        tcr |= TCR_T0SZ(VA_BITS) << TCR_T0SZ_OFFSET;
+        tcr |= t0sz << TCR_T0SZ_OFFSET;
         write_sysreg(tcr, tcr_el1);
         isb();
 }

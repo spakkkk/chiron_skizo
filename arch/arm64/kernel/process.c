@@ -382,10 +382,8 @@ static void tls_thread_switch(struct task_struct *next)
 	tpidrro = is_compat_thread(task_thread_info(next)) ?
 		  next->thread.tp_value : 0;
 
-	asm(
-	"	msr	tpidr_el0, %0\n"
-	"	msr	tpidrro_el0, %1"
-	: : "r" (tpidr), "r" (tpidrro));
+	write_sysreg(tpidr, tpidr_el0);
+	write_sysreg(tpidrro, tpidrro_el0);
 }
 
 /* Restore the UAO state depending on next's addr_limit */
