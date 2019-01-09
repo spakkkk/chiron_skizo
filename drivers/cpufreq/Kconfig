@@ -267,16 +267,28 @@ config WAKE_BOOST_DURATION_MS
 	  Wake boost duration in milliseconds.
 
 config INPUT_BOOST_FREQ_LP
-	int "Low-power cluster boost freq"
-	default "0"
-	help
-	  Input boost frequency for the low-power CPU cluster.
+       int "Low-power cluster boost freq"
+       default "0"
+       help
+         Input boost frequency for the low-power CPU cluster.
 
 config INPUT_BOOST_FREQ_PERF
-	int "Performance cluster boost freq"
-	default "0"
+       int "Performance cluster boost freq"
+       default "0"
+       help
+         Input boost frequency for the performance CPU cluster.
+
+config INPUT_BOOST_STUNE_LEVEL
+	int "Foreground app schedtune input boost level"
+	depends on DYNAMIC_STUNE_BOOST
+	default "20"
 	help
-	  Input boost frequency for the performance CPU cluster.
+	  Input boost level for the EAS SchedTune boosting system. This
+	  artifically increases perceived load of certain processes in order
+	  to prioritize and increase their usage of big cores as well as
+	  influence system-wide CPU frequency selection. Negative values are
+	  accepted for testing purposes. A value of 0 disables SchedTune
+	  boosting for this level.
 
 config REMOVE_INPUT_BOOST_FREQ_LP
 	int "Low-power cluster return frequency"

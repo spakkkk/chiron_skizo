@@ -21,11 +21,16 @@ module_param(input_boost_freq_lp, uint, 0644);
 module_param(input_boost_freq_hp, uint, 0644);
 module_param(input_boost_duration, short, 0644);
 
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST
+static __read_mostly int input_stune_boost = CONFIG_INPUT_BOOST_STUNE_LEVEL;
+#endif
+
 /* Available bits for boost_drv state */
-#define SCREEN_AWAKE		BIT(0)
-#define INPUT_BOOST		BIT(1)
-#define WAKE_BOOST		BIT(2)
-#define MAX_BOOST		BIT(3)
+#define SCREEN_AWAKE            BIT(0)
+#define INPUT_BOOST             BIT(1)
+#define WAKE_BOOST              BIT(2)
+#define MAX_BOOST               BIT(3)
+#define INPUT_STUNE_BOOST       BIT(4)
 
 struct boost_drv {
 	struct workqueue_struct *wq;
@@ -38,6 +43,7 @@ struct boost_drv {
 	atomic64_t max_boost_expires;
 	atomic_t max_boost_dur;
 	atomic_t state;
+	int input_stune_slot;
 };
 
 static struct boost_drv *boost_drv_g __read_mostly;
@@ -87,14 +93,35 @@ static void update_online_cpu_policy(void)
 	put_online_cpus();
 }
 
+static void set_stune_boost(struct boost_drv *b, u32 state, u32 bit, int level,
+			    int *slot)
+{
+	if (level && !(state & bit)) {
+		if (!do_stune_boost("top-app", level, slot))
+			set_boost_bit(b, bit);
+	}
+}
+
+static void clear_stune_boost(struct boost_drv *b, u32 state, u32 bit, int slot)
+{
+	if (state & bit) {
+		reset_stune_boost("top-app", slot);
+		clear_boost_bit(b, bit);
+	}
+}
+
 static void unboost_all_cpus(struct boost_drv *b)
 {
+	u32 state = get_boost_state(b);
+
 	if (!cancel_delayed_work_sync(&b->input_unboost) &&
 		!cancel_delayed_work_sync(&b->max_unboost))
 		return;
 
 	clear_boost_bit(b, INPUT_BOOST | WAKE_BOOST | MAX_BOOST);
 	update_online_cpu_policy();
+
+	clear_stune_boost(b, state, INPUT_STUNE_BOOST, b->input_stune_slot);
 }
 
 void cpu_input_boost_kick(void)
@@ -139,6 +166,7 @@ void cpu_input_boost_kick_max(unsigned int duration_ms)
 static void input_boost_worker(struct work_struct *work)
 {
 	struct boost_drv *b = container_of(work, typeof(*b), input_boost);
+	u32 state = get_boost_state(b);
 
 	if (!cancel_delayed_work_sync(&b->input_unboost)) {
 		set_boost_bit(b, INPUT_BOOST);
@@ -146,16 +174,22 @@ static void input_boost_worker(struct work_struct *work)
 	}
 
 	queue_delayed_work(b->wq, &b->input_unboost,
-		msecs_to_jiffies(input_boost_duration));
+		msecs_to_jiffies(CONFIG_INPUT_BOOST_DURATION_MS));
+
+	set_stune_boost(b, state, INPUT_STUNE_BOOST, input_stune_boost,
+		&b->input_stune_slot);
 }
 
 static void input_unboost_worker(struct work_struct *work)
 {
 	struct boost_drv *b =
 		container_of(to_delayed_work(work), typeof(*b), input_unboost);
+	u32 state = get_boost_state(b);
 
 	clear_boost_bit(b, INPUT_BOOST);
 	update_online_cpu_policy();
+
+	clear_stune_boost(b, state, INPUT_STUNE_BOOST, b->input_stune_slot);
 }
 
 static void max_boost_worker(struct work_struct *work)
