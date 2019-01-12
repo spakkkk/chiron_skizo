@@ -170,3 +170,7 @@
 	clock-names = "core_clk";
 	clocks = <&clock_mmss clk_mmss_camss_cpp_clk>;
 };
+
+&smb138x {
+	status = "disabled";
+};
