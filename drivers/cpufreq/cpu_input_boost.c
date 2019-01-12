@@ -23,6 +23,7 @@ module_param(input_boost_duration, short, 0644);
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 static __read_mostly int input_stune_boost = CONFIG_INPUT_BOOST_STUNE_LEVEL;
+static __read_mostly int display_stune_boost = CONFIG_DISPLAY_BOOST_STUNE_LEVEL;
 #endif
 
 /* Available bits for boost_drv state */
@@ -31,6 +32,7 @@ static __read_mostly int input_stune_boost = CONFIG_INPUT_BOOST_STUNE_LEVEL;
 #define WAKE_BOOST              BIT(2)
 #define MAX_BOOST               BIT(3)
 #define INPUT_STUNE_BOOST       BIT(4)
+#define DISPLAY_STUNE_BOOST	    BIT(5)
 
 struct boost_drv {
 	struct workqueue_struct *wq;
@@ -44,6 +46,7 @@ struct boost_drv {
 	atomic_t max_boost_dur;
 	atomic_t state;
 	int input_stune_slot;
+	int display_stune_slot;
 };
 
 static struct boost_drv *boost_drv_g __read_mostly;
@@ -253,6 +256,7 @@ static int fb_notifier_cb(struct notifier_block *nb,
 	struct boost_drv *b = container_of(nb, typeof(*b), fb_notif);
 	struct fb_event *evdata = data;
 	int *blank = evdata->data;
+	u32 state = get_boost_state(b);
 
 	/* Parse framebuffer blank events as soon as they occur */
 	if (action != FB_EARLY_EVENT_BLANK)
@@ -261,9 +265,12 @@ static int fb_notifier_cb(struct notifier_block *nb,
 	/* Boost when the screen turns on and unboost when it turns off */
 	if (*blank == FB_BLANK_UNBLANK) {
 		set_boost_bit(b, SCREEN_AWAKE);
-		__cpu_input_boost_kick_max(b, CONFIG_WAKE_BOOST_DURATION_MS);
+		set_stune_boost(b, state, DISPLAY_STUNE_BOOST, display_stune_boost,
+			        &b->display_stune_slot);
 	} else {
 		clear_boost_bit(b, SCREEN_AWAKE);
+		clear_stune_boost(b, state, DISPLAY_STUNE_BOOST,
+				  b->display_stune_slot);
 		unboost_all_cpus(b);
 	}
 
