@@ -87,7 +87,9 @@ int elliptic_data_cleanup(struct elliptic_data *);
 
 void elliptic_data_reset_debug_counters(struct elliptic_data *);
 void elliptic_data_update_debug_counters(struct elliptic_data *);
+#ifdef CONFIG_ELLIPTIC_DEBUG
 void elliptic_data_print_debug_counters(struct elliptic_data *);
+#endif
 
 size_t elliptic_data_pop(struct elliptic_data *,
 	char __user *buffer, size_t buffer_size);

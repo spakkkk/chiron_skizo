@@ -55,6 +55,7 @@ void elliptic_data_reset_debug_counters(struct elliptic_data
 	elliptic_data->userspace_fifo_flush_count = 0;
 }
 
+#ifdef CONFIG_ELLIPTIC_PDEBUG
 void elliptic_data_print_debug_counters(struct elliptic_data
 	*elliptic_data) {
 
@@ -84,6 +85,7 @@ void elliptic_data_print_debug_counters(struct elliptic_data
 
 
 }
+#endif
 
 void elliptic_data_update_debug_counters(struct elliptic_data
 	*elliptic_data)
@@ -528,7 +530,9 @@ static int device_close(struct inode *inode, struct file *filp)
 
 	device->opened = 0;
 	elliptic_data_update_debug_counters(elliptic_data);
+#ifdef CONFIG_ELLIPTIC_PDEBUG
 	elliptic_data_print_debug_counters(elliptic_data);
+#endif
 
 	up(&device->sem);
 
