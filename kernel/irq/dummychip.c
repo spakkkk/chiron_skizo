@@ -16,9 +16,6 @@
  */
 static void ack_bad(struct irq_data *data)
 {
-	struct irq_desc *desc = irq_data_to_desc(data);
-
-	print_irq_desc(data->irq, desc);
 	ack_bad_irq(data->irq);
 }
 
