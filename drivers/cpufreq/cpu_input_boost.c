@@ -185,13 +185,13 @@ static void input_boost_worker(struct kthread_work *work)
 	if (!cancel_delayed_work_sync(&b->input_unboost)) {
 		set_boost_bit(b, INPUT_BOOST);
 		update_online_cpu_policy();
+
+	        set_stune_boost(b, state, INPUT_STUNE_BOOST, input_stune_boost,
+        	        &b->input_stune_slot);
 	}
 
 	queue_delayed_work(system_power_efficient_wq, &b->input_unboost,
 		msecs_to_jiffies(CONFIG_INPUT_BOOST_DURATION_MS));
-
-	set_stune_boost(b, state, INPUT_STUNE_BOOST, input_stune_boost,
-		&b->input_stune_slot);
 }
 
 static void input_unboost_worker(struct work_struct *work)
