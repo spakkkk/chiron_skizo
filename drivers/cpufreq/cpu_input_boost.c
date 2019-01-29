@@ -11,6 +11,7 @@
 #include <linux/input.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
+#include <linux/kthread.h>
 #include "../../kernel/sched/sched.h"
 
 static unsigned int input_boost_freq_lp = CONFIG_INPUT_BOOST_FREQ_LP;
@@ -37,10 +38,11 @@ static __read_mostly int display_stune_boost = CONFIG_DISPLAY_BOOST_STUNE_LEVEL;
 #define DISPLAY_STUNE_BOOST	    BIT(5)
 
 struct boost_drv {
-	struct workqueue_struct *wq;
-	struct work_struct input_boost;
+	struct kthread_worker worker;
+	struct task_struct *worker_thread;
+	struct kthread_work input_boost;
 	struct delayed_work input_unboost;
-	struct work_struct max_boost;
+	struct kthread_work max_boost;
 	struct delayed_work max_unboost;
 	struct notifier_block cpu_notif;
 	struct notifier_block fb_notif;
@@ -143,7 +145,7 @@ void cpu_input_boost_kick(void)
 	if (!b)
 		return;
 
-	queue_work(b->wq, &b->input_boost);
+	kthread_queue_work(&b->worker, &b->input_boost);
 }
 
 static void __cpu_input_boost_kick_max(struct boost_drv *b,
@@ -162,7 +164,7 @@ static void __cpu_input_boost_kick_max(struct boost_drv *b,
 		new_expires) != curr_expires);
 
 	atomic_set(&b->max_boost_dur, duration_ms);
-	queue_work(b->wq, &b->max_boost);
+	kthread_queue_work(&b->worker, &b->max_boost);
 }
 
 void cpu_input_boost_kick_max(unsigned int duration_ms)
@@ -175,7 +177,7 @@ void cpu_input_boost_kick_max(unsigned int duration_ms)
 	__cpu_input_boost_kick_max(b, duration_ms);
 }
 
-static void input_boost_worker(struct work_struct *work)
+static void input_boost_worker(struct kthread_work *work)
 {
 	struct boost_drv *b = container_of(work, typeof(*b), input_boost);
 	u32 state = get_boost_state(b);
@@ -185,7 +187,7 @@ static void input_boost_worker(struct work_struct *work)
 		update_online_cpu_policy();
 	}
 
-	queue_delayed_work(b->wq, &b->input_unboost,
+	queue_delayed_work(system_power_efficient_wq, &b->input_unboost,
 		msecs_to_jiffies(CONFIG_INPUT_BOOST_DURATION_MS));
 
 	set_stune_boost(b, state, INPUT_STUNE_BOOST, input_stune_boost,
@@ -204,7 +206,7 @@ static void input_unboost_worker(struct work_struct *work)
 	clear_stune_boost(b, state, INPUT_STUNE_BOOST, b->input_stune_slot);
 }
 
-static void max_boost_worker(struct work_struct *work)
+static void max_boost_worker(struct kthread_work *work)
 {
 	struct boost_drv *b = container_of(work, typeof(*b), max_boost);
 
@@ -213,7 +215,7 @@ static void max_boost_worker(struct work_struct *work)
 		update_online_cpu_policy();
 	}
 
-	queue_delayed_work(b->wq, &b->max_unboost,
+	queue_delayed_work(system_power_efficient_wq, &b->max_unboost,
 		msecs_to_jiffies(atomic_read(&b->max_boost_dur)));
 }
 
@@ -298,7 +300,7 @@ static void cpu_input_boost_input_event(struct input_handle *handle,
 	if (!(state & SCREEN_AWAKE))
 		return;
 
-	queue_work(b->wq, &b->input_boost);
+	kthread_queue_work(&b->worker, &b->input_boost);
 }
 
 static int cpu_input_boost_input_connect(struct input_handler *handler,
@@ -377,22 +379,41 @@ static struct input_handler cpu_input_boost_input_handler = {
 static int __init cpu_input_boost_init(void)
 {
 	struct boost_drv *b;
-	int ret;
+	int ret, i;
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 2 };
+	cpumask_t sys_bg_mask;
 
 	b = kzalloc(sizeof(*b), GFP_KERNEL);
 	if (!b)
 		return -ENOMEM;
 
-	b->wq = alloc_workqueue("cpu_input_boost_wq", WQ_HIGHPRI | WQ_UNBOUND, 0);
-	if (!b->wq) {
-		ret = -ENOMEM;
+	kthread_init_worker(&b->worker);
+	b->worker_thread = kthread_run(kthread_worker_fn, &b->worker,
+				       "cpu_input_boost_thread");
+	if (IS_ERR(b->worker_thread)) {
+		ret = PTR_ERR(b->worker_thread);
+		pr_err("Failed to start kworker, err: %d\n", ret);
 		goto free_b;
 	}
+	
+		ret = sched_setscheduler(b->worker_thread, SCHED_FIFO, &param);
+	if (ret)
+		pr_err("Failed to set SCHED_FIFO on kworker, err: %d\n", ret);
+
+	/* Init the cpumask: 1-3 inclusive */
+	for (i = 1; i <= 3; i++)
+		cpumask_set_cpu(i, &sys_bg_mask);
+
+	/* Bind it to the cpumask */
+	kthread_bind_mask(b->worker_thread, &sys_bg_mask);
+
+	/* Wake it up */
+	wake_up_process(b->worker_thread);
 
 	atomic64_set(&b->max_boost_expires, 0);
-	INIT_WORK(&b->input_boost, input_boost_worker);
+	kthread_init_work(&b->input_boost, input_boost_worker);
 	INIT_DELAYED_WORK(&b->input_unboost, input_unboost_worker);
-	INIT_WORK(&b->max_boost, max_boost_worker);
+	kthread_init_work(&b->max_boost, max_boost_worker);
 	INIT_DELAYED_WORK(&b->max_unboost, max_unboost_worker);
 	atomic_set(&b->state, 0);
 
@@ -428,7 +449,7 @@ unregister_handler:
 unregister_cpu_notif:
 	cpufreq_unregister_notifier(&b->cpu_notif, CPUFREQ_POLICY_NOTIFIER);
 destroy_wq:
-	destroy_workqueue(b->wq);
+	kthread_destroy_worker(&b->worker);
 free_b:
 	kfree(b);
 	return ret;
