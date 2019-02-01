@@ -4570,13 +4570,13 @@ static int msm_set_pinctrl(struct msm_pinctrl_info *pinctrl_info,
 	int curr_state = 0;
 
 	if (pinctrl_info == NULL) {
-		pr_err("%s: pinctrl_info is NULL\n", __func__);
+		pr_debug("%s: pinctrl_info is NULL\n", __func__);
 		ret = -EINVAL;
 		goto err;
 	}
 
 	if (pinctrl_info->pinctrl == NULL) {
-		pr_err("%s: pinctrl_info->pinctrl is NULL\n", __func__);
+		pr_debug("%s: pinctrl_info->pinctrl is NULL\n", __func__);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -4812,7 +4812,7 @@ static int msm8998_tdm_snd_startup(struct snd_pcm_substream *substream)
 
 	ret = msm_set_pinctrl(pinctrl_info, STATE_TDM_ACTIVE);
 	if (ret)
-		pr_err("%s: MI2S TLMM pinctrl set failed with %d\n",
+		pr_debug("%s: MI2S TLMM pinctrl set failed with %d\n",
 			__func__, ret);
 
 	return ret;
@@ -4828,7 +4828,7 @@ static void msm8998_tdm_snd_shutdown(struct snd_pcm_substream *substream)
 
 	ret = msm_set_pinctrl(pinctrl_info, STATE_DISABLE);
 	if (ret)
-		pr_err("%s: MI2S TLMM pinctrl set failed with %d\n",
+		pr_debug("%s: MI2S TLMM pinctrl set failed with %d\n",
 			__func__, ret);
 
 }
@@ -4866,7 +4866,7 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	if (index == QUAT_MI2S) {
 		ret_pinctrl = msm_set_pinctrl(pinctrl_info, STATE_MI2S_ACTIVE);
 		if (ret_pinctrl) {
-			pr_err("%s: MI2S TLMM pinctrl set failed with %d\n",
+			pr_debug("%s: MI2S TLMM pinctrl set failed with %d\n",
 				__func__, ret_pinctrl);
 		}
 	}
@@ -4949,7 +4949,7 @@ static void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 	if (index == QUAT_MI2S) {
 		ret_pinctrl = msm_set_pinctrl(pinctrl_info, STATE_DISABLE);
 		if (ret_pinctrl)
-			pr_err("%s: MI2S TLMM pinctrl set failed with %d\n",
+			pr_debug("%s: MI2S TLMM pinctrl set failed with %d\n",
 				__func__, ret_pinctrl);
 	}
 }
