@@ -26,6 +26,9 @@
 
 #include "sagit-camera-sensor-mtp.dtsi"
 
+/* Disable SMP2P Remote Debug for production */
+#include "../qcom/msm-rdbg-disable.dtsi"
+
 / {
 	bluetooth: bt_wcn3990 {
 		compatible = "qca,wcn3990";
