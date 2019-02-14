@@ -681,6 +681,7 @@ endif
 
 ifeq ($(cc-name),gcc)
 KBUILD_CFLAGS	+= -Wno-psabi
+KBUILD_CFLAGS	+= -mcpu=cortex-a73.cortex-a53 -mtune=cortex-a73.cortex-a53
 endif
 
 ifdef CONFIG_CC_WERROR
