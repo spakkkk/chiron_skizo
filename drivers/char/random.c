@@ -1062,6 +1062,7 @@ void add_interrupt_randomness(int irq, int irq_flags)
 	__u64			ip;
 	unsigned long		seed;
 	int			credit = 0;
+	unsigned long		flags;
 
 	if (cycles == 0)
 		cycles = get_reg(fast_pool, regs);
@@ -1092,7 +1093,7 @@ void add_interrupt_randomness(int irq, int irq_flags)
 		return;
 
 	r = &input_pool;
-	if (!spin_trylock(&r->lock))
+	if (!spin_trylock_irqsave(&r->lock, flags))
 		return;
 
 	fast_pool->last = now;
@@ -1108,7 +1109,7 @@ void add_interrupt_randomness(int irq, int irq_flags)
 		__mix_pool_bytes(r, &seed, sizeof(seed));
 		credit = 1;
 	}
-	spin_unlock(&r->lock);
+	spin_unlock_irqrestore(&r->lock, flags);
 
 	fast_pool->count = 0;
 
@@ -2014,7 +2015,7 @@ u64 get_random_u64(void)
 	put_cpu_var(batched_entropy_u64);
 	return ret;
 }
-EXPORT_SYMBOL(get_random_64);
+EXPORT_SYMBOL(get_random_u64);
 
 static DEFINE_PER_CPU(struct batched_entropy, batched_entropy_u32);
 u32 get_random_u32(void)
