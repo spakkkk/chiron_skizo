@@ -961,6 +961,7 @@ static void populate_codec_list(struct msm_compr_audio *prtd)
 	prtd->compr_cap.codecs[14] = SND_AUDIOCODEC_APTX;
 	prtd->compr_cap.codecs[15] = SND_AUDIOCODEC_TRUEHD;
 	prtd->compr_cap.codecs[16] = SND_AUDIOCODEC_IEC61937;
+	prtd->compr_cap.codecs[17] = SND_AUDIOCODEC_APTXHD;
 }
 
 static int msm_compr_send_media_format_block(struct snd_compr_stream *cstream,
@@ -1228,6 +1229,8 @@ static int msm_compr_send_media_format_block(struct snd_compr_stream *cstream,
 			pr_err("%s: CMD IEC61937 Format block failed ret %d\n",
 				__func__, ret);
 		break;
+	case FORMAT_APTXHD:
+		pr_debug("SND_AUDIOCODEC_APTXHD\n");
 	case FORMAT_APTX:
 		pr_debug("SND_AUDIOCODEC_APTX\n");
 		memset(&aptx_cfg, 0x0, sizeof(struct aptx_dec_bt_addr_cfg));
@@ -1550,7 +1553,7 @@ static int msm_compr_configure_dsp_for_capture(struct snd_compr_stream *cstream)
 
 static int msm_compr_map_ion_fd(struct msm_compr_audio *prtd, int fd)
 {
-	ion_phys_addr_t paddr;
+	ion_phys_addr_t paddr = 0;
 	size_t pa_len = 0;
 	int ret = 0;
 
@@ -1580,7 +1583,7 @@ done:
 
 static int msm_compr_unmap_ion_fd(struct msm_compr_audio *prtd)
 {
-	ion_phys_addr_t paddr;
+	ion_phys_addr_t paddr = 0;
 	size_t pa_len = 0;
 	int ret = 0;
 
@@ -1795,7 +1798,7 @@ static int msm_compr_playback_free(struct snd_compr_stream *cstream)
 	int dir = IN, ret = 0, stream_id;
 	unsigned long flags;
 	uint32_t stream_index;
-	ion_phys_addr_t paddr;
+	ion_phys_addr_t paddr = 0;
 	size_t pa_len = 0;
 
 	pr_debug("%s\n", __func__);
@@ -2139,6 +2142,12 @@ static int msm_compr_set_params(struct snd_compr_stream *cstream,
 	case SND_AUDIOCODEC_APTX: {
 		pr_debug("%s: SND_AUDIOCODEC_APTX\n", __func__);
 		prtd->codec = FORMAT_APTX;
+		break;
+	}
+
+	case SND_AUDIOCODEC_APTXHD: {
+		pr_debug("%s: SND_AUDIOCODEC_APTXHD\n", __func__);
+		prtd->codec = FORMAT_APTXHD;
 		break;
 	}
 
@@ -3013,6 +3022,7 @@ static int msm_compr_get_codec_caps(struct snd_compr_stream *cstream,
 	case SND_AUDIOCODEC_TRUEHD:
 	case SND_AUDIOCODEC_IEC61937:
 	case SND_AUDIOCODEC_APTX:
+	case SND_AUDIOCODEC_APTXHD:
 		break;
 	default:
 		pr_err("%s: Unsupported audio codec %d\n",
@@ -3451,6 +3461,7 @@ static int msm_compr_send_dec_params(struct snd_compr_stream *cstream,
 	case FORMAT_TRUEHD:
 	case FORMAT_IEC61937:
 	case FORMAT_APTX:
+	case FORMAT_APTXHD:
 		pr_debug("%s: no runtime parameters for codec: %d\n", __func__,
 			 prtd->codec);
 		break;
@@ -3520,6 +3531,7 @@ static int msm_compr_dec_params_put(struct snd_kcontrol *kcontrol,
 	case FORMAT_TRUEHD:
 	case FORMAT_IEC61937:
 	case FORMAT_APTX:
+	case FORMAT_APTXHD:
 		pr_debug("%s: no runtime parameters for codec: %d\n", __func__,
 			 prtd->codec);
 		break;
