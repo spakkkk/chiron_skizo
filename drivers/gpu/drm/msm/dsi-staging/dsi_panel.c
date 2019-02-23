@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017,2019 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -424,6 +424,8 @@ static int dsi_panel_parse_timing(struct dsi_mode_info *mode,
 				  struct device_node *of_node)
 {
 	int rc = 0;
+	u64 tmp64;
+	struct dsi_display_mode *display_mode;
 
 	rc = of_property_read_u32(of_node, "qcom,mdss-dsi-panel-framerate",
 				  &mode->refresh_rate);
@@ -432,6 +434,18 @@ static int dsi_panel_parse_timing(struct dsi_mode_info *mode,
 		       rc);
 		goto error;
 	}
+
+	display_mode = container_of(mode, struct dsi_display_mode, timing);
+	rc= of_property_read_u64(of_node,
+			"qcom,mdss-dsi-panel-clockrate", &tmp64);
+	if (rc == -EOVERFLOW) {
+		tmp64 = 0;
+		rc = of_property_read_u32(of_node,
+			"qcom,mdss-dsi-panel-clockrate", (u32 *)&tmp64);
+	}
+
+	mode->clk_rate_hz = !rc ? tmp64 : 0;
+	display_mode->pixel_clk_khz = mode->clk_rate_hz /1000;
 
 	rc = of_property_read_u32(of_node, "qcom,mdss-dsi-panel-width",
 				  &mode->h_active);
@@ -1553,10 +1567,13 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 		pr_err("failed to parse panel timing, rc=%d\n", rc);
 		goto error;
 	}
-
-	panel->mode.pixel_clk_khz = (DSI_H_TOTAL(&panel->mode.timing) *
-				    DSI_V_TOTAL(&panel->mode.timing) *
-				    panel->mode.timing.refresh_rate) / 1000;
+	if (panel->mode.timing.clk_rate_hz == 0) {
+		panel->mode.pixel_clk_khz = (DSI_H_TOTAL(&panel->mode.timing) *
+					DSI_V_TOTAL(&panel->mode.timing) *
+					panel->mode.timing.refresh_rate) / 1000;
+	} else {
+		panel->mode.pixel_clk_khz = panel->mode.timing.clk_rate_hz / 1000;
+	}
 	rc = dsi_panel_parse_host_config(panel, of_node);
 	if (rc) {
 		pr_err("failed to parse host configuration, rc=%d\n", rc);
@@ -1834,6 +1851,7 @@ int dsi_panel_get_host_cfg_for_mode(struct dsi_panel *panel,
 	       sizeof(config->video_timing));
 
 	config->esc_clk_rate_hz = 19200000;
+	config->bit_clk_rate_hz = mode->pixel_clk_khz * 1000;
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }

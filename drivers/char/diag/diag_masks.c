@@ -362,7 +362,7 @@ static void diag_send_msg_mask_update(uint8_t peripheral, int first, int last)
 				mask_info =
 				driver->md_session_map[peripheral]->msg_mask;
 				md_session_info =
-					driver->md_session_map[peripheral];
+				driver->md_session_map[peripheral];
 			}
 		} else if (driver->md_session_mask &
 				MD_PERIPHERAL_PD_MASK(peripheral)) {
@@ -370,7 +370,8 @@ static void diag_send_msg_mask_update(uint8_t peripheral, int first, int last)
 			if (upd && driver->md_session_map[upd]) {
 				mask_info =
 				driver->md_session_map[upd]->msg_mask;
-				md_session_info = driver->md_session_map[upd];
+				md_session_info =
+				driver->md_session_map[upd];
 			}
 		} else {
 			DIAG_LOG(DIAG_DEBUG_MASKS,

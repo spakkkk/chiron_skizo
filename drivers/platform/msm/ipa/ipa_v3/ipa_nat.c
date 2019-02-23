@@ -370,9 +370,12 @@ int ipa3_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 	u32 offset = 0;
 	size_t tmp;
 
+	mutex_lock(&ipa3_ctx->nat_mem.lock);
+
 	IPADBG("\n");
 	if (init->table_entries == 0) {
 		IPADBG("Table entries is zero\n");
+		mutex_unlock(&ipa3_ctx->nat_mem.lock);
 		return -EPERM;
 	}
 
@@ -380,6 +383,7 @@ int ipa3_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 	if (init->ipv4_rules_offset >
 		UINT_MAX - (TBL_ENTRY_SIZE * (init->table_entries + 1))) {
 		IPAERR_RL("Detected overflow\n");
+		mutex_unlock(&ipa3_ctx->nat_mem.lock);
 		return -EPERM;
 	}
 

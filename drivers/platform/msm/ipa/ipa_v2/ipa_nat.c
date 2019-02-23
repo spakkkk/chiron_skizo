@@ -363,6 +363,8 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 		mutex_unlock(&ipa_ctx->nat_mem.lock);
 		return -EPERM;
 	}
+
+
 	/* Check Table Entry offset is not
 	   beyond allocated size */
 	tmp = init->ipv4_rules_offset +

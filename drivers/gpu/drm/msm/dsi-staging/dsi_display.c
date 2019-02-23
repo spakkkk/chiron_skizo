@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2404,9 +2404,13 @@ int dsi_display_get_modes(struct dsi_display *display,
 		if (dfps_caps.dfps_support) {
 			modes->timing.refresh_rate = dfps_caps.min_refresh_rate
 					+ (i % num_dfps_rates);
-			modes->pixel_clk_khz = (DSI_H_TOTAL(&modes->timing) *
+			if (display->panel[0]->mode.pixel_clk_khz == 0) {
+				modes->pixel_clk_khz = (DSI_H_TOTAL(&modes->timing) *
 					DSI_V_TOTAL(&modes->timing) *
 					modes->timing.refresh_rate) / 1000;
+			} else {
+				modes->pixel_clk_khz = display->panel[0]->mode.pixel_clk_khz;
+			}
 		}
 
 		if (display->ctrl_count > 1) { /* TODO: remove if */

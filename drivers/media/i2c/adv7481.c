@@ -68,6 +68,9 @@
 #define AVI_INFOFRAME_SIZE		31
 #define INFOFRAME_DATA_SIZE		28
 
+#define DEFAULT_SETTLE_COUNT	16
+#define DEFAULT_LANE_COUNT	2
+
 enum adv7481_gpio_t {
 
 	CCI_I2C_SDA = 0,
@@ -1778,8 +1781,9 @@ static int get_settle_cnt(struct resolution_config *configs,
 	} else if ((w == 720 && h == 576) || (w == 720 && h == 480)) {
 		strlcpy(res_type, "RES_576P_480P", sizeof(res_type));
 	} else {
-		pr_err("%s: Resolution not supported\n", __func__);
-		return ret;
+		pr_err("%s: Not a standard Resolution - set default settle count\n",
+			__func__);
+		return DEFAULT_SETTLE_COUNT;
 	}
 
 	for (i = 0; i < size; i++) {
@@ -1808,8 +1812,9 @@ static int get_lane_cnt(struct resolution_config *configs,
 	} else if ((w == 720 && h == 576) || (w == 720 && h == 480)) {
 		strlcpy(res_type, "RES_576P_480P", sizeof(res_type));
 	} else {
-		pr_err("%s: Resolution not supported\n", __func__);
-		return ret;
+		pr_err("%s: Not a standard Resolution - set default lane count\n",
+			__func__);
+		return DEFAULT_LANE_COUNT;
 	}
 
 	for (i = 0; i < size; i++) {

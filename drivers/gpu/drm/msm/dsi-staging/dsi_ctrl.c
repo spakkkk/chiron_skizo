@@ -775,7 +775,7 @@ err:
 }
 
 static int dsi_ctrl_update_link_freqs(struct dsi_ctrl *dsi_ctrl,
-				      struct dsi_host_config *config)
+					struct dsi_host_config *config)
 {
 	int rc = 0;
 	u32 num_of_lanes = 0;
@@ -794,10 +794,13 @@ static int dsi_ctrl_update_link_freqs(struct dsi_ctrl *dsi_ctrl,
 	if (host_cfg->data_lanes & DSI_DATA_LANE_3)
 		num_of_lanes++;
 
-	h_period = DSI_H_TOTAL(timing);
-	v_period = DSI_V_TOTAL(timing);
-
-	bit_rate = h_period * v_period * timing->refresh_rate * bpp * 8;
+	if (config->bit_clk_rate_hz == 0) {
+		h_period = DSI_H_TOTAL(timing);
+		v_period = DSI_V_TOTAL(timing);
+		bit_rate = h_period * v_period * timing->refresh_rate * bpp * 8;
+	} else {
+		bit_rate = config->bit_clk_rate_hz * bpp * 8;
+	}
 	bit_rate_per_lane = bit_rate;
 	do_div(bit_rate_per_lane, num_of_lanes);
 	pclk_rate = bit_rate;

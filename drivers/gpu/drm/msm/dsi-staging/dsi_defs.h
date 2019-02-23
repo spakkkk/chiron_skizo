@@ -221,6 +221,7 @@ struct dsi_mode_info {
 	bool v_sync_polarity;
 
 	u32 refresh_rate;
+	u64 clk_rate_hz;
 };
 
 /**

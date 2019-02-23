@@ -653,6 +653,9 @@ static struct config_item *extension_details_make_item(struct config_group *grou
 	if (!extension_details)
 		return ERR_PTR(-ENOMEM);
 
+	if (!extensions_value)
+		return ERR_PTR(-ENXIO);
+
 	tmp = kstrdup(name, GFP_KERNEL);
 	if (!tmp) {
 		kfree(extension_details);
