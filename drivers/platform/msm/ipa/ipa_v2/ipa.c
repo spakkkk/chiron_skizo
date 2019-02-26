@@ -2364,7 +2364,7 @@ int ioremap_non_ap_bam_regs(void)
 				return -ENOMEM;
 			}
 		}
-		return 0;
+	return 0;
 }
 
 /**
