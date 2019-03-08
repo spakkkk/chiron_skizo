@@ -63,7 +63,10 @@ ifeq ($(CONFIG_COMPAT_VDSO), y)
   endif
 endif
 
-KBUILD_CFLAGS	+= $(call cc-option,-march=armv8-a+crypto+crc,) $(call cc-option,-mcpu=cortex-a53+crypto+crc,)
+KBUILD_CFLAGS   += $(call cc-option,-march=armv8-a+crypto+crc,) \
+        $(call cc-option,-mcpu=cortex-a53+crypto+crc,)
+KBUILD_AFLAGS   += $(call cc-option,-march=armv8-a+crypto+crc,) \
+        $(call cc-option,-mcpu=cortex-a53+crypto+crc,)
 GEN_FLAGS 	:= -fopenmp
 KBUILD_CFLAGS	+= $(GEN_FLAGS)
 
