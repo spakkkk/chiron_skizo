@@ -2639,6 +2639,7 @@ void mlx4_cmd_use_polling(struct mlx4_dev *dev)
 		down(&priv->cmd.event_sem);
 
 	kfree(priv->cmd.context);
+	priv->cmd.context = NULL;
 
 	up(&priv->cmd.poll_sem);
 }
