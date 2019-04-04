@@ -80,6 +80,8 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tRCU dyntick-idle grace-period acceleration is enabled.\n");
 	if (IS_ENABLED(CONFIG_PROVE_RCU))
 		pr_info("\tRCU lockdep checking is enabled.\n");
+	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_RUNNABLE))
+		pr_info("\tRCU torture testing starts during boot.\n");
 	if (RCU_NUM_LVLS >= 4)
 		pr_info("\tFour(or more)-level hierarchy is enabled.\n");
 	if (RCU_FANOUT_LEAF != 16)
@@ -446,14 +448,20 @@ void rcu_read_unlock_special(struct task_struct *t)
 
 		/*
 		 * Remove this task from the list it blocked on.  The task
-		 * now remains queued on the rcu_node corresponding to the
-		 * CPU it first blocked on, so there is no longer any need
-		 * to loop.  Retain a WARN_ON_ONCE() out of sheer paranoia.
+		 * now remains queued on the rcu_node corresponding to
+		 * the CPU it first blocked on, so the first attempt to
+		 * acquire the task's rcu_node's ->lock will succeed.
+		 * Keep the loop and add a WARN_ON() out of sheer paranoia.
 		 */
-		rnp = t->rcu_blocked_node;
-                raw_spin_lock(&rnp->lock);  /* irqs already disabled. */
-                smp_mb__after_unlock_lock();
-		WARN_ON_ONCE(rnp != t->rcu_blocked_node);
+		for (;;) {
+			rnp = t->rcu_blocked_node;
+			raw_spin_lock(&rnp->lock);  /* irqs already disabled. */
+			smp_mb__after_unlock_lock();
+			if (rnp == t->rcu_blocked_node)
+				break;
+			WARN_ON_ONCE(1);
+			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
+		}
 		empty_norm = !rcu_preempt_blocked_readers_cgp(rnp);
 		empty_exp = sync_rcu_preempt_exp_done(rnp);
 		smp_mb(); /* ensure expedited fastpath sees end of RCU c-s. */
@@ -673,7 +681,7 @@ void synchronize_rcu(void)
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
 			 "Illegal synchronize_rcu() in RCU read-side critical section");
-	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
+	if (!rcu_scheduler_active)
 		return;
 	if (rcu_gp_is_expedited())
 		synchronize_rcu_expedited();
@@ -701,7 +709,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier);
  */
 static void __init __rcu_init_preempt(void)
 {
-	rcu_init_one(rcu_state_p);
+	rcu_init_one(rcu_state_p, rcu_data_p);
 }
 
 /*
@@ -725,6 +733,7 @@ void exit_rcu(void)
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
 static struct rcu_state *const rcu_state_p = &rcu_sched_state;
+static struct rcu_data __percpu *const rcu_data_p = &rcu_sched_data;
 
 /*
  * Tell them what RCU they are running.
@@ -1722,9 +1731,9 @@ early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
  * Wake up any no-CBs CPUs' kthreads that were waiting on the just-ended
  * grace period.
  */
-static void rcu_nocb_gp_cleanup(wait_queue_head_t *sq)
+static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 {
-	wake_up_all(sq);
+	wake_up_all(&rnp->nocb_gp_wq[rnp->completed & 0x1]);
 }
 
 /*
@@ -1738,11 +1747,6 @@ static void rcu_nocb_gp_cleanup(wait_queue_head_t *sq)
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
 {
 	rnp->need_future_gp[(rnp->completed + 1) & 0x1] += nrq;
-}
-
-static wait_queue_head_t *rcu_nocb_gp_get(struct rcu_node *rnp)
-{
-	return &rnp->nocb_gp_wq[rnp->completed & 0x1];
 }
 
 static void rcu_init_one_nocb(struct rcu_node *rnp)
@@ -2318,13 +2322,8 @@ static void rcu_spawn_one_nocb_kthread(struct rcu_state *rsp, int cpu)
 	}
 
 	/* Spawn the kthread for this CPU and RCU flavor. */
-#ifdef CONFIG_RCU_NOCB_CPU_BIND_LP
-	t = kthread_run_low_power(rcu_nocb_kthread, rdp_spawn,
-			"rcuo%c/%d", rsp->abbr, cpu);
-#else
 	t = kthread_run(rcu_nocb_kthread, rdp_spawn,
 			"rcuo%c/%d", rsp->abbr, cpu);
-#endif
 	BUG_ON(IS_ERR(t));
 	WRITE_ONCE(rdp_spawn->nocb_kthread, t);
 }
@@ -2427,17 +2426,12 @@ static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu)
 	return false;
 }
 
-static void rcu_nocb_gp_cleanup(wait_queue_head_t *sq)
+static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 {
 }
 
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
 {
-}
-
-static wait_queue_head_t *rcu_nocb_gp_get(struct rcu_node *rnp)
-{
-	return NULL;
 }
 
 static void rcu_init_one_nocb(struct rcu_node *rnp)
