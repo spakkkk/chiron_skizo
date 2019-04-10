@@ -54,13 +54,13 @@ rt_mutex_set_owner(struct rt_mutex *lock, struct task_struct *owner)
 	if (rt_mutex_has_waiters(lock))
 		val |= RT_MUTEX_HAS_WAITERS;
 
-	WRITE_ONCE(lock->owner, (struct task_struct *)val);
+	lock->owner = (struct task_struct *)val;
 }
 
 static inline void clear_rt_mutex_waiters(struct rt_mutex *lock)
 {
-	WRITE_ONCE(lock->owner, (struct task_struct *)
-		   ((unsigned long)lock->owner & ~RT_MUTEX_HAS_WAITERS));
+	lock->owner = (struct task_struct *)
+			((unsigned long)lock->owner & ~RT_MUTEX_HAS_WAITERS);
 }
 
 static void fixup_rt_mutex_waiters(struct rt_mutex *lock)
@@ -261,7 +261,7 @@ rt_mutex_enqueue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
 	}
 
 	if (leftmost)
-		WRITE_ONCE(lock->waiters_leftmost, &waiter->tree_entry);
+		lock->waiters_leftmost = &waiter->tree_entry;
 
 	rb_link_node(&waiter->tree_entry, parent, link);
 	rb_insert_color(&waiter->tree_entry, &lock->waiters);
@@ -273,8 +273,8 @@ rt_mutex_dequeue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
 	if (RB_EMPTY_NODE(&waiter->tree_entry))
 		return;
 
-	if (READ_ONCE(lock->waiters_leftmost) == &waiter->tree_entry)
-		WRITE_ONCE(lock->waiters_leftmost, rb_next(&waiter->tree_entry));
+	if (lock->waiters_leftmost == &waiter->tree_entry)
+		lock->waiters_leftmost = rb_next(&waiter->tree_entry);
 
 	rb_erase(&waiter->tree_entry, &lock->waiters);
 	RB_CLEAR_NODE(&waiter->tree_entry);
@@ -1089,17 +1089,14 @@ static void mark_wakeup_next_waiter(struct wake_q_head *wake_q,
 	rt_mutex_dequeue_pi(current, waiter);
 
 	/*
-	 * As we are potentially waking up the top waiter, and the waiter
-	 * stays queued on the lock until it gets the lock, this lock
-	 * obviously has waiters. Just set the bit here and this has the
-	 * added benefit of forcing all new tasks into the slow path
-	 * making sure no task of lower priority than the top waiter can
-	 * steal this lock.
-	 *
-	 * If the top waiter, otoh, is spinning on ->owner, this will also
-	 * serve to exit out of the loop and try to acquire the lock.
+	 * As we are waking up the top waiter, and the waiter stays
+	 * queued on the lock until it gets the lock, this lock
+	 * obviously has waiters. Just set the bit here and this has
+	 * the added benefit of forcing all new tasks into the
+	 * slow path making sure no task of lower priority than
+	 * the top waiter can steal this lock.
 	 */
-	WRITE_ONCE(lock->owner, (void *) RT_MUTEX_HAS_WAITERS);
+	lock->owner = (void *) RT_MUTEX_HAS_WAITERS;
 
 	raw_spin_unlock(&current->pi_lock);
 
@@ -1194,59 +1191,6 @@ void rt_mutex_adjust_pi(struct task_struct *task)
 				   next_lock, NULL, task);
 }
 
-#ifdef CONFIG_RT_MUTEX_SPIN_ON_OWNER
-static bool rt_mutex_spin_on_owner(struct rt_mutex *lock,
-				   struct task_struct *owner,
-				   struct rt_mutex_waiter *waiter)
-{
-	bool ret = true;
-
-	/*
-	 * The last owner could have just released the lock,
-	 * immediately try taking it again.
-	 */
-	if (!owner)
-		goto done;
-
-	rcu_read_lock();
-	while (rt_mutex_owner(lock) == owner) {
-		/*
-		 * Ensure we emit the owner->on_cpu, dereference _after_
-		 * checking lock->owner still matches owner. If that fails,
-		 * owner might point to freed memory. If it still matches,
-		 * the rcu_read_lock() ensures the memory stays valid.
-		 */
-		barrier();
-		if (!owner->on_cpu || need_resched() ||
-		    rt_mutex_top_waiter(lock) != waiter) {
-			ret = false;
-			break;
-		}
-
-		cpu_relax_lowlatency();
-	}
-	rcu_read_unlock();
-done:
-	return ret;
-}
-
-#else
-static bool rt_mutex_spin_on_owner(struct rt_mutex *lock,
-				   struct task_struct *owner,
-				   struct rt_mutex_waiter *waiter)
-{
-	return false;
-}
-#endif
-
-void rt_mutex_init_waiter(struct rt_mutex_waiter *waiter)
-{
-	debug_rt_mutex_init_waiter(waiter);
-	RB_CLEAR_NODE(&waiter->pi_tree_entry);
-	RB_CLEAR_NODE(&waiter->tree_entry);
-	waiter->task = NULL;
-}
-
 /**
  * __rt_mutex_slowlock() - Perform the wait-wake-try-to-take loop
  * @lock:		 the rt_mutex to take
@@ -1265,8 +1209,6 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 	int ret = 0;
 
 	for (;;) {
-		struct rt_mutex_waiter *top_waiter = NULL;
-
 		/* Try to acquire the lock: */
 		if (try_to_take_rt_mutex(lock, current, waiter))
 			break;
@@ -1285,21 +1227,11 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 				break;
 		}
 
-		top_waiter = rt_mutex_top_waiter(lock);
-
 		raw_spin_unlock_irq(&lock->wait_lock);
 
 		debug_rt_mutex_print_deadlock(waiter);
 
-		/*
-		 * At this point the PI-dance is done, and, as the top waiter,
-		 * we are next in line for the lock. Try to spin on the current
-		 * owner for a while, in the hope that the lock will be released
-		 * soon. Otherwise fallback and block.
-		 */
-		if (top_waiter != waiter ||
-		    !rt_mutex_spin_on_owner(lock, rt_mutex_owner(lock), waiter))
-			schedule();
+		schedule();
 
 		raw_spin_lock_irq(&lock->wait_lock);
 		set_current_state(state);
@@ -1329,44 +1261,6 @@ static void rt_mutex_handle_deadlock(int res, int detect_deadlock,
 	}
 }
 
-int __sched rt_mutex_slowlock_locked(struct rt_mutex *lock, int state,
-				     struct hrtimer_sleeper *timeout,
-				     enum rtmutex_chainwalk chwalk,
-				     struct rt_mutex_waiter *waiter)
-{
-	int ret;
-
-	/* Try to acquire the lock again: */
-	if (try_to_take_rt_mutex(lock, current, NULL))
-		return 0;
-
-	set_current_state(state);
-
-	/* Setup the timer, when timeout != NULL */
-	if (unlikely(timeout))
-		hrtimer_start_expires(&timeout->timer, HRTIMER_MODE_ABS);
-
-	ret = task_blocks_on_rt_mutex(lock, waiter, current, chwalk);
-
-	if (likely(!ret))
-		/* sleep on the mutex */
-		ret = __rt_mutex_slowlock(lock, state, timeout, waiter);
-
-	if (unlikely(ret)) {
-		__set_current_state(TASK_RUNNING);
-		if (rt_mutex_has_waiters(lock))
-			remove_waiter(lock, waiter);
-		rt_mutex_handle_deadlock(ret, chwalk, waiter);
-	}
-
-	/*
-	 * try_to_take_rt_mutex() sets the waiter bit
-	 * unconditionally. We might have to fix that up.
-	 */
-	fixup_rt_mutex_waiters(lock);
-	return ret;
-}
-
 /*
  * Slow path lock function:
  */
@@ -1379,7 +1273,9 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 	unsigned long flags;
 	int ret = 0;
 
-	rt_mutex_init_waiter(&waiter);
+	debug_rt_mutex_init_waiter(&waiter);
+	RB_CLEAR_NODE(&waiter.pi_tree_entry);
+	RB_CLEAR_NODE(&waiter.tree_entry);
 
 	/*
 	 * Technically we could use raw_spin_[un]lock_irq() here, but this can
@@ -1391,7 +1287,36 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 	 */
 	raw_spin_lock_irqsave(&lock->wait_lock, flags);
 
-	ret = rt_mutex_slowlock_locked(lock, state, timeout, chwalk, &waiter);
+	/* Try to acquire the lock again: */
+	if (try_to_take_rt_mutex(lock, current, NULL)) {
+		raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
+		return 0;
+	}
+
+	set_current_state(state);
+
+	/* Setup the timer, when timeout != NULL */
+	if (unlikely(timeout))
+		hrtimer_start_expires(&timeout->timer, HRTIMER_MODE_ABS);
+
+	ret = task_blocks_on_rt_mutex(lock, &waiter, current, chwalk);
+
+	if (likely(!ret))
+		/* sleep on the mutex */
+		ret = __rt_mutex_slowlock(lock, state, timeout, &waiter);
+
+	if (unlikely(ret)) {
+		__set_current_state(TASK_RUNNING);
+		if (rt_mutex_has_waiters(lock))
+			remove_waiter(lock, &waiter);
+		rt_mutex_handle_deadlock(ret, chwalk, &waiter);
+	}
+
+	/*
+	 * try_to_take_rt_mutex() sets the waiter bit
+	 * unconditionally. We might have to fix that up.
+	 */
+	fixup_rt_mutex_waiters(lock);
 
 	raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
 
@@ -1732,7 +1657,7 @@ EXPORT_SYMBOL_GPL(__rt_mutex_init);
  * rt_mutex_init_proxy_locked - initialize and lock a rt_mutex on behalf of a
  *				proxy owner
  *
- * @lock:	the rt_mutex to be locked
+ * @lock: 	the rt_mutex to be locked
  * @proxy_owner:the task to set as owner
  *
  * No locking. Caller has to do serializing itself
@@ -1750,7 +1675,7 @@ void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
 /**
  * rt_mutex_proxy_unlock - release a lock on behalf of owner
  *
- * @lock:	the rt_mutex to be locked
+ * @lock: 	the rt_mutex to be locked
  *
  * No locking. Caller has to do serializing itself
  * Special API call for PI-futex support
