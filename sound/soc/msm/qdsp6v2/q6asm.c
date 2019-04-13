@@ -2189,12 +2189,10 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 					flags);
 				return -EINVAL;
 			}
-			if (data->payload_size >= 2 * sizeof(uint32_t) &&
-				(lower_32_bits(port->buf[buf_index].phys) !=
-				payload[0] ||
-				msm_audio_populate_upper_32_bits(
-					port->buf[buf_index].phys) !=
-				payload[1])) {
+			if (lower_32_bits(port->buf[buf_index].phys) !=
+			payload[0] ||
+			msm_audio_populate_upper_32_bits(
+				port->buf[buf_index].phys) !=	payload[1]) {
 				pr_debug("%s: Expected addr %pK\n",
 				__func__, &port->buf[buf_index].phys);
 				pr_err("%s: rxedl[0x%x] rxedu [0x%x]\n",
