@@ -348,6 +348,7 @@ struct synaptics_rmi4_data {
 	struct synaptics_dsx_panel_power_seq panel_power_seq;
 #ifdef CONFIG_FB
 	struct notifier_block fb_notifier;
+	struct work_struct pm_work;
 	struct work_struct reset_work;
 	struct workqueue_struct *reset_workqueue;
 #endif

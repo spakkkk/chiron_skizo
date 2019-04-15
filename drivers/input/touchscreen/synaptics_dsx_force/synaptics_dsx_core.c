@@ -177,6 +177,7 @@ static ssize_t synaptics_secure_touch_show(struct device *dev,
 #endif
 
 #ifdef CONFIG_FB
+static void synaptics_pm_worker(struct work_struct *work);
 static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
 		unsigned long event, void *data);
 static int synaptics_rmi4_fb_notifier_cb_tddi(struct notifier_block *self,
@@ -5048,6 +5049,7 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 	synaptics_rmi4_query_chip_id(rmi4_data);
 
 #ifdef CONFIG_FB
+	INIT_WORK(&rmi4_data->pm_work, synaptics_pm_worker);
 	if (!rmi4_data->chip_is_tddi)
 		rmi4_data->fb_notifier.notifier_call = synaptics_rmi4_fb_notifier_cb;
 	else
@@ -5547,6 +5549,17 @@ static void synaptics_rmi4_wakeup_gesture(struct synaptics_rmi4_data *rmi4_data,
 }
 
 #ifdef CONFIG_FB
+static void synaptics_pm_worker(struct work_struct *work)
+{
+	struct synaptics_rmi4_data *rmi4_data =
+			container_of(work, typeof(*rmi4_data), pm_work);
+
+	if (rmi4_data->fb_ready)
+		synaptics_rmi4_resume(&rmi4_data->pdev->dev);
+	else
+		synaptics_rmi4_suspend(&rmi4_data->pdev->dev);
+}
+
 static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
 		unsigned long event, void *data)
 {
@@ -5568,11 +5581,13 @@ static int synaptics_rmi4_fb_notifier_cb(struct notifier_block *self,
 		if (event == FB_EVENT_BLANK) {
 			transition = evdata->data;
 			if ((*transition == FB_BLANK_POWERDOWN) || (*transition == FB_BLANK_NORMAL)) {
-				synaptics_rmi4_suspend(&rmi4_data->pdev->dev);
+				flush_work(&rmi4_data->pm_work);
 				rmi4_data->fb_ready = false;
+				schedule_work(&rmi4_data->pm_work);
 			} else if ((*transition == FB_BLANK_UNBLANK) || (*transition == FB_BLANK_NORMAL)) {
-				synaptics_rmi4_resume(&rmi4_data->pdev->dev);
+				flush_work(&rmi4_data->pm_work);
 				rmi4_data->fb_ready = true;
+				schedule_work(&rmi4_data->pm_work);
 				if (rmi4_data->wakeup_en) {
 					mdss_panel_reset_skip_enable(false);
 					mdss_regulator_ctrl(rmi4_data, DISP_REG_ALL, false);
