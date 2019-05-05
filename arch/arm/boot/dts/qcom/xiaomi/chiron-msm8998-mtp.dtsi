@@ -395,11 +395,17 @@
 };
 
 &pmi8998_haptics {
-	qcom,wave-play-rate-us = <4878>;
 	qcom,vmax-mv = <2552>;
+	qcom,lra-auto-mode;
+	qcom,wave-play-rate-us = <4878>;
 	qcom,wave-shape = "sine";
-	qcom,brake-pattern = [03 02 00 00];
-
+	qcom,lra-high-z = "opt1";
+	qcom,lra-auto-res-mode = "qwd";
+	qcom,lra-res-cal-period = <4>;
+	qcom,effect-max = <3>;
+	qcom,effect-arry = [3e 3e be a0 00 00 00 00
+	3e 3e 3e be be 00 00 00
+	3e 3e 3e 3e be be a0 90];
 	status = "okay";
 };
 
