@@ -408,6 +408,9 @@ struct qpnp_hap {
 	bool				override_auto_mode_config;
 	bool				play_irq_en;
 	int				td_time_ms;
+	bool				overdrive;
+	u32				effect_max;
+	u8				(*effect_array)[QPNP_HAP_WAV_SAMP_LEN];
 };
 
 static struct qpnp_hap *ghap;
@@ -1018,12 +1021,31 @@ static int qpnp_hap_brake_config(struct qpnp_hap *hap, u8 *brake_pat)
 static int qpnp_hap_parse_buffer_dt(struct qpnp_hap *hap)
 {
 	struct platform_device *pdev = hap->pdev;
+	struct device_node *node = hap->pdev->dev.of_node;
 	struct property *prop;
 	u32 temp;
 	int rc, i;
+	int size = 0;
 
 	if (hap->wave_rep_cnt > 0 || hap->wave_s_rep_cnt > 0)
 		return 0;
+
+	hap->effect_max = 0;
+	rc = of_property_read_u32(node, "qcom,effect-max", &temp);
+	if (!rc) {
+		hap->effect_max = temp;
+	}
+	size = QPNP_HAP_WAV_SAMP_LEN * hap->effect_max;
+
+	prop = of_find_property(node, "qcom,effect-arry", &temp);
+	if (!prop) {
+		pr_err("Unable to read effect array\n");
+	} else if (temp != size) {
+		pr_err("Invalid length of effect array\n");
+	} else {
+		hap->effect_array = kmalloc(size, GFP_KERNEL);
+		memcpy(hap->effect_array, prop->value, size);
+	}
 
 	hap->wave_rep_cnt = QPNP_HAP_WAV_REP_MIN;
 	rc = of_property_read_u32(pdev->dev.of_node,
@@ -1934,15 +1956,6 @@ static int qpnp_hap_auto_res_enable(struct qpnp_hap *hap, int enable)
 		auto_res_mode_qwd = (hap->ares_cfg.auto_res_mode ==
 							QPNP_HAP_AUTO_RES_QWD);
 
-	/*
-	 * Do not enable auto resonance if auto mode is enabled and auto
-	 * resonance mode is QWD, meaning short pattern.
-	 */
-	if (hap->auto_mode && auto_res_mode_qwd && enable) {
-		pr_debug("auto_mode enabled, not enabling auto_res\n");
-		return 0;
-	}
-
 	if (!hap->correct_lra_drive_freq && !auto_res_mode_qwd) {
 		pr_debug("correct_lra_drive_freq: %d auto_res_mode_qwd: %d\n",
 			hap->correct_lra_drive_freq, auto_res_mode_qwd);
@@ -2152,6 +2165,8 @@ static int qpnp_hap_auto_mode_config(struct qpnp_hap *hap, int time_ms)
 	u8 brake_pat[QPNP_HAP_BRAKE_PAT_LEN] = {0};
 	u8 wave_samp[QPNP_HAP_WAV_SAMP_LEN] = {0};
 	int rc, vmax_mv;
+	int index, i;
+	bool overdrive = true;
 
 	/* For now, this is for LRA only */
 	if (hap->act_type == QPNP_HAP_ERM)
@@ -2161,15 +2176,25 @@ static int qpnp_hap_auto_mode_config(struct qpnp_hap *hap, int time_ms)
 	old_play_mode = hap->play_mode;
 	pr_debug("auto_mode, time_ms: %d\n", time_ms);
 	if (time_ms <= 20) {
-		wave_samp[0] = QPNP_HAP_WAV_SAMP_MAX;
-		wave_samp[1] = QPNP_HAP_WAV_SAMP_MAX;
-		if (time_ms > 15)
-			wave_samp[2] = QPNP_HAP_WAV_SAMP_MAX;
-
 		/* short pattern */
 		rc = qpnp_hap_parse_buffer_dt(hap);
-		if (!rc)
-			rc = qpnp_hap_buffer_config(hap, wave_samp, true);
+		if (!rc) {
+			if (hap->effect_max) {
+				index = time_ms * hap->effect_max / 21;
+				for (i = 0; i < QPNP_HAP_WAV_SAMP_LEN; i++)
+					wave_samp[i] = hap->effect_array[index][i];
+
+				overdrive = hap->overdrive;
+			} else {
+				wave_samp[0] = QPNP_HAP_WF_AMP_MASK;
+				wave_samp[1] = QPNP_HAP_WF_AMP_MASK;
+				if (time_ms > 15) {
+					wave_samp[2] = QPNP_HAP_WF_AMP_MASK;
+				}
+
+			}
+			rc = qpnp_hap_buffer_config(hap, wave_samp, overdrive);
+		}
 		if (rc < 0) {
 			pr_err("Error in configuring buffer mode %d\n",
 				rc);
@@ -2205,7 +2230,7 @@ static int qpnp_hap_auto_mode_config(struct qpnp_hap *hap, int time_ms)
 		}
 
 		hap->play_mode = QPNP_HAP_BUFFER;
-		hap->wave_shape = QPNP_HAP_WAV_SQUARE;
+		hap->wave_shape = QPNP_HAP_WAV_SINE;
 	} else {
 		/* long pattern */
 		ares_cfg.lra_high_z = QPNP_HAP_LRA_HIGH_Z_OPT1;
@@ -2939,6 +2964,8 @@ static int qpnp_hap_parse_dt(struct qpnp_hap *hap)
 	}
 
 	hap->vtg_default = hap->vmax_mv;
+
+	hap->overdrive =  of_property_read_bool(pdev->dev.of_node, "qcom,overdrive");
 
 	hap->ilim_ma = QPNP_HAP_ILIM_MIN_MV;
 	rc = of_property_read_u32(pdev->dev.of_node, "qcom,ilim-ma", &temp);
