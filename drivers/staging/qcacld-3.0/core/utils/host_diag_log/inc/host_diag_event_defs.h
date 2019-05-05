@@ -888,25 +888,6 @@ typedef enum {
 
 	EVENT_WLAN_SSR_SHUTDOWN_SUBSYSTEM = 0xB3D,
 
-	/*
-	 * <diag_event>
-	 * EVENT_WLAN_RSN_INFO
-	 * @akm_suite: Akm suites used in assoc request
-	 * @ucast_cipher: Unicast cipher used in assoc request
-	 * @mcast_cipher: Multicast cipher used in assoc request
-	 * @group_mgmt: Requested group mgmt cipher suite
-	 *
-	 * This event is used to send RSN information used
-	 * in assoc request.
-	 *
-	 * Supported Feature: STA
-	 *
-	 * </diag_event>
-	 */
-
-	EVENT_WLAN_RSN_INFO = 0xC5B,
-
-
 	EVENT_MAX_ID = 0x0FFF
 } event_id_enum_type;
 
