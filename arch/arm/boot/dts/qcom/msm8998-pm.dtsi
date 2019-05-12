@@ -54,7 +54,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			label = "system";
-			qcom,clstr-tmr-add = <1000>;
 			qcom,spm-device-names = "cci";
 			qcom,psci-mode-shift = <8>;
 			qcom,psci-mode-mask = <0xf>;
@@ -140,9 +139,6 @@
 					#size-cells = <0>;
 					qcom,psci-mode-shift = <0>;
 					qcom,psci-mode-mask = <0xf>;
-					qcom,ref-stddev = <300>;
-					qcom,tmr-add = <600>;
-					qcom,ref-premature-cnt = <2>;
 
 					qcom,pm-cpu-level@0 { /* C1 */
 						reg = <0>;
@@ -236,9 +232,6 @@
 					#size-cells = <0>;
 					qcom,psci-mode-shift = <0>;
 					qcom,psci-mode-mask = <0xf>;
-					qcom,ref-stddev = <100>;
-					qcom,tmr-add = <100>;
-					qcom,ref-premature-cnt = <3>;
 
 					qcom,pm-cpu-level@0 { /* C1 */
 						reg = <0>;
