@@ -249,6 +249,3 @@ cond_syscall(sys_execveat);
 
 /* membarrier */
 cond_syscall(sys_membarrier);
-
-/* restartable sequence */
-cond_syscall(rseq);
