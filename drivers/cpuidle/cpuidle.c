@@ -34,7 +34,6 @@ LIST_HEAD(cpuidle_detected_devices);
 static int enabled_devices;
 static int off __read_mostly;
 static int initialized __read_mostly;
-static atomic_t idle_cpus = ATOMIC_INIT(0);
 
 int cpuidle_disabled(void)
 {
@@ -211,9 +210,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 	time_start = ktime_get();
 
 	stop_critical_timings();
-	atomic_or(BIT(dev->cpu), &idle_cpus);
 	entered_state = target_state->enter(dev, drv, index);
-	atomic_andnot(BIT(dev->cpu), &idle_cpus);
 	start_critical_timings();
 
 	time_end = ktime_get();
@@ -627,6 +624,12 @@ int cpuidle_register(struct cpuidle_driver *drv,
 EXPORT_SYMBOL_GPL(cpuidle_register);
 
 #ifdef CONFIG_SMP
+
+static void smp_callback(void *v)
+{
+	/* we already woke the CPU up, nothing more to do */
+}
+
 /*
  * This function gets called when a part of the kernel has a new latency
  * requirement.  This means we need to get only those processors out of their
@@ -636,19 +639,16 @@ EXPORT_SYMBOL_GPL(cpuidle_register);
 static int cpuidle_latency_notify(struct notifier_block *b,
 		unsigned long l, void *v)
 {
-	static unsigned long prev_latency = ULONG_MAX;
-	unsigned long cpus;
-	struct cpumask *idle_mask = to_cpumask(&cpus);
+	struct cpumask cpus;
 
-	if (l < prev_latency) {
-		preempt_disable();
-		cpus = atomic_read(&idle_cpus);
-		cpumask_andnot(idle_mask, idle_mask, cpu_isolated_mask);
-		arch_send_call_function_ipi_mask(idle_mask);
-		preempt_enable();
-	}
+	if (v)
+		cpumask_andnot(&cpus, v, cpu_isolated_mask);
+	else
+		cpumask_andnot(&cpus, cpu_online_mask, cpu_isolated_mask);
 
-	prev_latency = l;
+	preempt_disable();
+	smp_call_function_many(&cpus, smp_callback, NULL, 1);
+	preempt_enable();
 
 	return NOTIFY_OK;
 }
@@ -675,7 +675,6 @@ static int __init cpuidle_init(void)
 {
 	int ret;
 
-	BUILD_BUG_ON(NR_CPUS > sizeof(idle_cpus.counter) * BITS_PER_BYTE);
 	if (cpuidle_disabled())
 		return -ENODEV;
 
