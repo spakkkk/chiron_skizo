@@ -71,8 +71,6 @@ KBUILD_CFLAGS   += $(call cc-option,-march=armv8-a+crypto+crc,) \
         $(call cc-option,-mcpu=cortex-a53+crypto+crc,)
 KBUILD_AFLAGS   += $(call cc-option,-march=armv8-a+crypto+crc,) \
         $(call cc-option,-mcpu=cortex-a53+crypto+crc,)
-GEN_FLAGS 	:= -fopenmp
-KBUILD_CFLAGS	+= $(GEN_FLAGS)
 
 ifeq ($(cc-name),clang)
 KBUILD_CFLAGS	+= $(call clang-ifversion, -ge, 0600, -mgeneral-regs-only, -mno-implicit-float)
@@ -93,24 +91,17 @@ else
 KBUILD_CFLAGS	+= $(call cc-ifversion, -ge, 0500, -DCONFIG_ARCH_SUPPORTS_INT128)
 endif
 
-KBUILD_CFLAGS	+= $(call cc-option,-mabi=lp64)
-KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
-
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 KBUILD_CPPFLAGS	+= -mbig-endian
 AS		+= -EB
 ifeq ($(ld-name),gold)
 LDFLAGS		+= -EB -maarch64_elf64_be_vec
-else
-LDFLAGS		+= -EB -maarch64linuxb
 endif
 else
 KBUILD_CPPFLAGS	+= -mlittle-endian
 AS		+= -EL
 ifeq ($(ld-name),gold)
 LDFLAGS		+= -EL -maarch64_elf64_le_vec
-else
-LDFLAGS		+= -EL -maarch64linux
 endif
 endif
 
