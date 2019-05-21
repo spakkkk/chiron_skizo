@@ -1383,4 +1383,18 @@ static inline void trace_event_enum_update(struct trace_enum_map **map, int len)
 
 extern struct trace_iterator *tracepoint_print_iter;
 
+/* reset all but tr, trace, and overruns */
+static __always_inline void trace_iterator_reset(struct trace_iterator * iter)
+{
+	/*
+	 * Equivalent to &iter->seq, but avoids GCC 9 complaining about
+	 * overwriting more members than just iter->seq (-Warray-bounds)
+	 */
+	memset((char *)(iter) + offsetof(struct trace_iterator, seq), 0,
+	       sizeof(struct trace_iterator) -
+	       offsetof(struct trace_iterator, seq));
+	iter->iter_flags |= TRACE_FILE_LAT_FMT;
+	iter->pos = -1;
+}
+
 #endif /* _LINUX_KERNEL_TRACE_H */
