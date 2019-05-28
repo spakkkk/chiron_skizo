@@ -617,7 +617,7 @@ static int fastrpc_mmap_create(struct fastrpc_file *fl, int fd, unsigned attr,
 	int cid = fl->cid;
 	struct fastrpc_channel_ctx *chan = &apps->channel[cid];
 	struct fastrpc_mmap *map = NULL;
-	unsigned long attrs;
+	unsigned long attrs = 0;
 	phys_addr_t region_start = 0;
 	unsigned long flags;
 	int err = 0, vmid;
@@ -687,17 +687,18 @@ static int fastrpc_mmap_create(struct fastrpc_file *fl, int fd, unsigned attr,
 		if (err)
 			goto bail;
 		if (sess->smmu.enabled) {
-			attrs |= DMA_ATTR_EXEC_MAPPING;
-			if ((map->attr & FASTRPC_ATTR_NON_COHERENT) ||
-				(sess->smmu.coherent && map->uncached))
-				attrs |= DMA_ATTR_FORCE_NON_COHERENT;
-			else if (map->attr & FASTRPC_ATTR_COHERENT)
-				attrs |= DMA_ATTR_FORCE_COHERENT;
+		attrs |= DMA_ATTR_EXEC_MAPPING;
 
-			VERIFY(err, map->table->nents ==
-					msm_dma_map_sg_attrs(sess->smmu.dev,
-					map->table->sgl, map->table->nents,
-					DMA_BIDIRECTIONAL, map->buf, attrs));
+		if ((map->attr & FASTRPC_ATTR_NON_COHERENT) ||
+			(sess->smmu.coherent && map->uncached))
+			attrs |= DMA_ATTR_FORCE_NON_COHERENT;
+		else if (map->attr & FASTRPC_ATTR_COHERENT)
+			attrs |= DMA_ATTR_FORCE_COHERENT;
+
+		VERIFY(err, map->table->nents ==
+				msm_dma_map_sg_attrs(sess->smmu.dev,
+				map->table->sgl, map->table->nents,
+				DMA_BIDIRECTIONAL, map->buf, attrs));
 			if (err)
 				goto bail;
 		} else {
