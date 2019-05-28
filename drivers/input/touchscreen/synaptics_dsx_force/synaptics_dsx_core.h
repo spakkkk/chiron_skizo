@@ -423,6 +423,8 @@ struct synaptics_rmi4_data {
 			bool enable);
 	void (*report_touch)(struct synaptics_rmi4_data *rmi4_data,
 			struct synaptics_rmi4_fn *fhandler);
+	struct pm_qos_request pm_i2c_req;
+	struct pm_qos_request pm_touch_req;
 	struct pinctrl *ts_pinctrl;
 	struct pinctrl_state *pinctrl_state_active;
 	struct pinctrl_state *pinctrl_state_suspend;
@@ -448,7 +450,6 @@ struct synaptics_rmi4_data {
 #endif
 
 	struct proc_dir_entry *input_proc;
-	struct pm_qos_request pm_qos_req;
 };
 
 struct synaptics_dsx_bus_access {
@@ -494,6 +495,8 @@ void synaptics_rmi4_new_function_force(struct synaptics_rmi4_exp_fn *exp_fn_modu
 		bool insert);
 
 int synaptics_fw_updater(const unsigned char *fw_data);
+
+unsigned int synaptics_rmi4_i2c_irq(void);
 
 static inline int synaptics_rmi4_reg_read(
 		struct synaptics_rmi4_data *rmi4_data,
