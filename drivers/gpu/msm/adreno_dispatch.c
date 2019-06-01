@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -677,7 +677,7 @@ static int sendcmd(struct adreno_device *adreno_dev,
 	 * then set up the timer.  If this misses, then preemption is indeed a
 	 * thing and the timer will be set up in due time
 	 */
-	if (adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_NONE)) {
+	if (!adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_NONE)) {
 		if (drawqueue_is_current(dispatch_q))
 			mod_timer(&dispatcher->timer, dispatch_q->expires);
 	}
@@ -979,13 +979,6 @@ static void _adreno_dispatcher_issuecmds(struct adreno_device *adreno_dev)
 	spin_unlock(&dispatcher->plist_lock);
 }
 
-static inline void _decrement_submit_now(struct kgsl_device *device)
-{
-	spin_lock(&device->submit_lock);
-	device->submit_now--;
-	spin_unlock(&device->submit_lock);
-}
-
 /**
  * adreno_dispatcher_issuecmds() - Issue commmands from pending contexts
  * @adreno_dev: Pointer to the adreno device struct
@@ -995,29 +988,15 @@ static inline void _decrement_submit_now(struct kgsl_device *device)
 static void adreno_dispatcher_issuecmds(struct adreno_device *adreno_dev)
 {
 	struct adreno_dispatcher *dispatcher = &adreno_dev->dispatcher;
-	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
-
-	spin_lock(&device->submit_lock);
-	/* If state transition to SLUMBER, schedule the work for later */
-	if (device->slumber == true) {
-		spin_unlock(&device->submit_lock);
-		goto done;
-	}
-	device->submit_now++;
-	spin_unlock(&device->submit_lock);
 
 	/* If the dispatcher is busy then schedule the work for later */
 	if (!mutex_trylock(&dispatcher->mutex)) {
-		_decrement_submit_now(device);
-		goto done;
+		adreno_dispatcher_schedule(KGSL_DEVICE(adreno_dev));
+		return;
 	}
 
 	_adreno_dispatcher_issuecmds(adreno_dev);
 	mutex_unlock(&dispatcher->mutex);
-	_decrement_submit_now(device);
-	return;
-done:
-	adreno_dispatcher_schedule(device);
 }
 
 /**
@@ -1832,8 +1811,7 @@ static void process_cmdobj_fault(struct kgsl_device *device,
 	 * because we won't see this cmdobj again
 	 */
 
-	if ((fault & ADRENO_TIMEOUT_FAULT) ||
-				(fault & ADRENO_CTX_DETATCH_TIMEOUT_FAULT))
+	if (fault & ADRENO_TIMEOUT_FAULT)
 		bitmap_zero(&cmdobj->fault_policy, BITS_PER_LONG);
 
 	/*
@@ -2114,12 +2092,7 @@ static int dispatcher_do_fault(struct adreno_device *adreno_dev)
 	/* Turn off all the timers */
 	del_timer_sync(&dispatcher->timer);
 	del_timer_sync(&dispatcher->fault_timer);
-	/*
-	 * Deleting uninitialized timer will block for ever on kernel debug
-	 * disable build. Hence skip del timer if it is not initialized.
-	 */
-	if (adreno_is_preemption_enabled(adreno_dev))
-		del_timer_sync(&adreno_dev->preempt.timer);
+	del_timer_sync(&adreno_dev->preempt.timer);
 
 	mutex_lock(&device->mutex);
 
@@ -2814,16 +2787,6 @@ int adreno_dispatcher_init(struct adreno_device *adreno_dev)
 		&device->dev->kobj, "dispatch");
 
 	return ret;
-}
-
-void adreno_dispatcher_halt(struct kgsl_device *device)
-{
-	adreno_get_gpu_halt(ADRENO_DEVICE(device));
-}
-
-void adreno_dispatcher_unhalt(struct kgsl_device *device)
-{
-	adreno_put_gpu_halt(ADRENO_DEVICE(device));
 }
 
 /*
