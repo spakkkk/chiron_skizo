@@ -1476,13 +1476,6 @@ gov_sys_pol_attr_rw(timer_slack);
 gov_sys_pol_attr_rw(boost);
 gov_sys_pol_attr_rw(boostpulse_duration);
 gov_sys_pol_attr_rw(io_is_busy);
-gov_sys_pol_attr_rw(use_sched_load);
-gov_sys_pol_attr_rw(use_migration_notif);
-gov_sys_pol_attr_rw(max_freq_hysteresis);
-gov_sys_pol_attr_rw(align_windows);
-gov_sys_pol_attr_rw(ignore_hispeed_on_notif);
-gov_sys_pol_attr_rw(fast_ramp_down);
-gov_sys_pol_attr_rw(enable_prediction);
 
 static struct kobj_attribute boostpulse_gov_sys =
 	__ATTR(boostpulse, 0200, NULL, store_boostpulse_gov_sys);
