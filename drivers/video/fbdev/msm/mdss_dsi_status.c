@@ -24,7 +24,6 @@
 #include <linux/kobject.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
-#include <linux/interrupt.h>
 
 #include "mdss_fb.h"
 #include "mdss_dsi.h"
@@ -36,35 +35,9 @@
 #define DSI_STATUS_CHECK_INIT -1
 #define DSI_STATUS_CHECK_DISABLE 1
 
-static uint32_t interval = STATUS_CHECK_INTERVAL_MS / 2;
+static uint32_t interval = STATUS_CHECK_INTERVAL_MS;
 static int32_t dsi_status_disable = DSI_STATUS_CHECK_INIT;
 struct dsi_status_data *pstatus_data;
-
-static void enable_status_irq(struct dsi_status_data *pdata)
-{
-	struct mdss_dsi_ctrl_pdata *ctrl_pdata;
-
-	ctrl_pdata = container_of(dev_get_platdata(&pdata->mfd->pdev->dev),
-				typeof(*ctrl_pdata), panel_data);
-
-	atomic_set(&ctrl_pdata->te_irq_ready, 1);
-	schedule_delayed_work(&pdata->check_status,
-			msecs_to_jiffies(interval));
-	enable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
-}
-
-static void disable_status_irq(struct dsi_status_data *pdata)
-{
-	struct mdss_dsi_ctrl_pdata *ctrl_pdata;
-
-	ctrl_pdata = container_of(dev_get_platdata(&pdata->mfd->pdev->dev),
-				typeof(*ctrl_pdata), panel_data);
-
-	if (atomic_read(&ctrl_pdata->te_irq_ready)) {
-		disable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
-		atomic_set(&ctrl_pdata->te_irq_ready, 0);
-	}
-}
 
 int mdss_dsi_check_panel_status(struct mdss_dsi_ctrl_pdata *ctrl, void *arg)
 {
@@ -103,7 +76,6 @@ int mdss_dsi_check_panel_status(struct mdss_dsi_ctrl_pdata *ctrl, void *arg)
 static void check_dsi_ctrl_status(struct work_struct *work)
 {
 	struct dsi_status_data *pdsi_status = NULL;
-	struct mdss_dsi_ctrl_pdata *ctrl_pdata;
 
 	pdsi_status = container_of(to_delayed_work(work),
 		struct dsi_status_data, check_status);
@@ -124,24 +96,7 @@ static void check_dsi_ctrl_status(struct work_struct *work)
 		return;
 	}
 
-	ctrl_pdata = container_of(
-				dev_get_platdata(&pdsi_status->mfd->pdev->dev),
-				typeof(*ctrl_pdata), panel_data);
-
-	if (!atomic_read(&ctrl_pdata->te_irq_ready)) {
-		enable_status_irq(pdsi_status);
-		return;
-	}
-
 	pdsi_status->mfd->mdp.check_dsi_status(work, interval);
-}
-
-static void disable_vsync_irq(struct work_struct *work)
-{
-	struct dsi_status_data *pdata;
-
-	pdata = container_of(work, typeof(*pdata), irq_done);
-	disable_status_irq(pdata);
 }
 
 /*
@@ -168,7 +123,8 @@ irqreturn_t hw_vsync_handler(int irq, void *data)
 	else
 		pr_err("Pstatus data is NULL\n");
 
-	schedule_work(&pstatus_data->irq_done);
+	if (!atomic_read(&ctrl_pdata->te_irq_ready))
+		atomic_inc(&ctrl_pdata->te_irq_ready);
 
 	return IRQ_HANDLED;
 }
@@ -240,14 +196,13 @@ static int fb_event_callback(struct notifier_block *self,
 
 		switch (*blank) {
 		case FB_BLANK_UNBLANK:
-			enable_status_irq(pdata);
+			schedule_delayed_work(&pdata->check_status,
+				msecs_to_jiffies(interval));
 			break;
 		case FB_BLANK_POWERDOWN:
 		case FB_BLANK_HSYNC_SUSPEND:
 		case FB_BLANK_VSYNC_SUSPEND:
 		case FB_BLANK_NORMAL:
-			cancel_work_sync(&pdata->irq_done);
-			disable_status_irq(pdata);
 			cancel_delayed_work(&pdata->check_status);
 			break;
 		default:
@@ -315,7 +270,6 @@ int __init mdss_dsi_status_init(void)
 
 	pr_info("%s: DSI status check interval:%d\n", __func__,	interval);
 
-	INIT_WORK(&pstatus_data->irq_done, disable_vsync_irq);
 	INIT_DELAYED_WORK(&pstatus_data->check_status, check_dsi_ctrl_status);
 
 	pr_debug("%s: DSI ctrl status work queue initialized\n", __func__);
@@ -326,7 +280,6 @@ int __init mdss_dsi_status_init(void)
 void __exit mdss_dsi_status_exit(void)
 {
 	fb_unregister_client(&pstatus_data->fb_notifier);
-	cancel_work_sync(&pstatus_data->irq_done);
 	cancel_delayed_work_sync(&pstatus_data->check_status);
 	kfree(pstatus_data);
 	pr_debug("%s: DSI ctrl status work queue removed\n", __func__);

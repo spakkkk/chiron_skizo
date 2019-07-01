@@ -1958,25 +1958,6 @@ out:
 	return ret;
 }
 
-static void arm_smmu_free_pgtbl_ops(struct arm_smmu_domain *smmu_domain)
-{
-	/*
-	 * Free the domain resources. We assume that all devices have
-	 * already been detached.
-	 */
-	if (smmu_domain->pgtbl_ops) {
-		free_io_pgtable_ops(smmu_domain->pgtbl_ops);
-		/* unassign any freed page table memory */
-		if (arm_smmu_is_master_side_secure(smmu_domain)) {
-			arm_smmu_secure_domain_lock(smmu_domain);
-			arm_smmu_secure_pool_destroy(smmu_domain);
-			arm_smmu_unassign_table(smmu_domain);
-			arm_smmu_secure_domain_unlock(smmu_domain);
-		}
-		smmu_domain->pgtbl_ops = NULL;
-	}
-}
-
 static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -2014,7 +1995,6 @@ free_irqs:
 		free_irq(irq, domain);
 	}
 
-	arm_smmu_free_pgtbl_ops(smmu_domain);
 	arm_smmu_free_context_idx(smmu, cfg->cbndx);
 	smmu_domain->smmu = NULL;
 	cfg->cbndx = INVALID_CBNDX;
@@ -2059,7 +2039,22 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 
-	arm_smmu_free_pgtbl_ops(smmu_domain);
+	/*
+	 * Free the domain resources. We assume that all devices have
+	 * already been detached.
+	 */
+	if (smmu_domain->pgtbl_ops) {
+		free_io_pgtable_ops(smmu_domain->pgtbl_ops);
+		/* unassign any freed page table memory */
+		if (arm_smmu_is_master_side_secure(smmu_domain)) {
+			arm_smmu_secure_domain_lock(smmu_domain);
+			arm_smmu_secure_pool_destroy(smmu_domain);
+			arm_smmu_unassign_table(smmu_domain);
+			arm_smmu_secure_domain_unlock(smmu_domain);
+		}
+		smmu_domain->pgtbl_ops = NULL;
+	}
+
 	kfree(smmu_domain);
 }
 
