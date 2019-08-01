@@ -1464,8 +1464,8 @@ static int msm_isp_send_hw_cmd(struct vfe_device *vfe_dev,
 int msm_isp_proc_cmd(struct vfe_device *vfe_dev, void *arg)
 {
 	int rc = 0, i;
+	uint32_t cfg_data_onstack[SZ_4K / sizeof(uint32_t)];
 	struct msm_vfe_reg_cfg_cmd cfg_cmd_onstack[20];
-	uint32_t cfg_data_onstack[SZ_4K / sizeof(uint32_t)] __aligned(8);
 	struct msm_vfe_cfg_cmd2 *proc_cmd = arg;
 	struct msm_vfe_reg_cfg_cmd *reg_cfg_cmd;
 	uint32_t *cfg_data = NULL;

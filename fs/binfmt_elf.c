@@ -690,7 +690,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	struct file *interpreter = NULL; /* to shut gcc up */
  	unsigned long load_addr = 0, load_bias = 0;
 	int load_addr_set = 0;
-	char elf_interpreter[PATH_MAX] __aligned(8);
+	char elf_interpreter[PATH_MAX] __aligned(sizeof(long));
 	bool interp_present = false;
 	unsigned long error;
 	struct elf_phdr *elf_ppnt, *elf_phdata, *interp_elf_phdata = NULL;

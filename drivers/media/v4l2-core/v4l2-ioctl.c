@@ -2797,8 +2797,8 @@ long
 video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 	       v4l2_kioctl func)
 {
-	char	sbuf[SZ_4K] __aligned(8);
-	char    mbuf_onstack[SZ_512] __aligned(8);
+	char    mbuf_onstack[SZ_512] __aligned(sizeof(long));
+	char	sbuf[SZ_4K] __aligned(sizeof(long));
 	void    *mbuf = NULL;
 	void	*parg = (void *)arg;
 	long	err  = -EINVAL;

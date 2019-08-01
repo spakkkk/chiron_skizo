@@ -1261,9 +1261,9 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 {
 	struct superblock_security_struct *sbsec = NULL;
 	struct inode_security_struct *isec = inode->i_security;
+	char context_onstack[SZ_4K] __aligned(sizeof(long));
 	u32 sid;
 	struct dentry *dentry;
-	char context_onstack[SZ_4K] __aligned(8);
 	char *context = NULL;
 	unsigned len = 0;
 	int rc = 0;

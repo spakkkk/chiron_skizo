@@ -715,7 +715,7 @@ struct ion_heap *ion_system_heap_create(struct ion_platform_heap *data)
 	int pools_size = sizeof(struct ion_page_pool *) * num_orders;
 	struct device *dev = data->priv;
 
-	ion_page_info_pool = KMEM_CACHE(page_info, SLAB_HWCACHE_ALIGN);
+	ion_page_info_pool = KMEM_CACHE(page_info, 0);
 	if (!ion_page_info_pool)
 		return ERR_PTR(-ENOMEM);
 

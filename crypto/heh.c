@@ -656,7 +656,7 @@ static int heh_setkey(struct crypto_ablkcipher *parent, const u8 *key,
 		      unsigned int keylen)
 {
 	struct heh_tfm_ctx *ctx = crypto_ablkcipher_ctx(parent);
-	u8 derived_keys_onstack[SZ_1K] __aligned(8);
+	u8 derived_keys_onstack[SZ_1K] __aligned(sizeof(long));
 	struct crypto_shash *cmac = ctx->cmac;
 	struct crypto_ablkcipher *ecb = ctx->ecb;
 	SHASH_DESC_ON_STACK(desc, cmac);
