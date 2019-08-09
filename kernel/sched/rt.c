@@ -1733,8 +1733,6 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 	return p;
 }
 
-extern int update_rt_rq_load_avg(u64 now, int cpu, struct rt_rq *rt_rq, int running);
-
 static struct task_struct *
 pick_next_task_rt(struct rq *rq, struct task_struct *prev)
 {
@@ -1780,18 +1778,12 @@ pick_next_task_rt(struct rq *rq, struct task_struct *prev)
 
 	queue_push_tasks(rq);
 
-	if (p)
-		update_rt_rq_load_avg(rq_clock_task(rq), cpu_of(rq), rt_rq,
-					rq->curr->sched_class == &rt_sched_class);
-
 	return p;
 }
 
 static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 {
 	update_curr_rt(rq);
-
-	update_rt_rq_load_avg(rq_clock_task(rq), cpu_of(rq), &rq->rt, 1);
 
 	/*
 	 * The previous task needs to be made eligible for pushing
@@ -2060,7 +2052,9 @@ retry:
 	}
 
 	deactivate_task(rq, next_task, 0);
+	next_task->on_rq = TASK_ON_RQ_MIGRATING;
 	set_task_cpu(next_task, lowest_rq->cpu);
+	next_task->on_rq = TASK_ON_RQ_QUEUED;
 	activate_task(lowest_rq, next_task, 0);
 	ret = 1;
 
@@ -2332,7 +2326,9 @@ static void pull_rt_task(struct rq *this_rq)
 			resched = true;
 
 			deactivate_task(src_rq, p, 0);
+			p->on_rq = TASK_ON_RQ_MIGRATING;
 			set_task_cpu(p, this_cpu);
+			p->on_rq = TASK_ON_RQ_QUEUED;
 			activate_task(this_rq, p, 0);
 			/*
 			 * We continue with the search, just in
@@ -2516,7 +2512,6 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 	struct sched_rt_entity *rt_se = &p->rt;
 
 	update_curr_rt(rq);
-	update_rt_rq_load_avg(rq_clock_task(rq), cpu_of(rq), &rq->rt, 1);
 
 	watchdog(rq, p);
 
