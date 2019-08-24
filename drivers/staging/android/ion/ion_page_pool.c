@@ -70,7 +70,7 @@ static void ion_page_pool_free_pages(struct ion_page_pool *pool,
 
 static int ion_page_pool_add(struct ion_page_pool *pool, struct page *page)
 {
-        spin_lock(&pool->lock);
+	spin_lock(&pool->lock);
 	page->private = ION_PAGE_CACHE;
 	if (PageHighMem(page)) {
 		list_add_tail(&page->lru, &pool->high_items);
